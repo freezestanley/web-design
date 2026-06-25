@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "prompt": "帮我新建一个产品落地页，主题是AI写作工具，需要展示功能特性和定价方案",
+    "expected": "agent 先运行 list-projects.js，询问新建还是续改，引导用户确认页面主题/素材/文案/受众等信息，写入 product.md，等待用户确认后再推进到设计阶段"
+  },
+  {
+    "id": 2,
+    "prompt": "我的产品页做好了，帮我发布上线",
+    "expected": "agent 检查当前 Gate 状态，如未到 G9_PUBLISH_READY 拒绝直接发布，必须先经静态审计和用户预览确认，发布只能通过 publish.js"
+  },
+  {
+    "id": 3,
+    "prompt": "帮我修改首页的 Hero 区域文案，把标题改成让创作更简单",
+    "expected": "agent 先运行 list-projects.js 找项目，通过 resolve-project.js 确认是托管项目，创建续改 task，修改代码后 npm run build，做静态审计和预览"
+  }
+]

@@ -25,25 +25,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 审计和预览必须基于 `npm run build` 之后的静态页面，不允许基于 dev server。
 - 续改项目时，只允许操作 `PROJECTS_DIR` 下、且存在 `.webdesign/project.json` 的托管项目。
 
-**大文件处理协议**：
-```
-如果需要读取已有大文件：
-  1. 读取文件前 80 行 → 总结结构
-  2. 读取中间部分 → 总结逻辑
-  3. 读取末尾部分 → 确认完整性
-  4. 基于总结执行修改，不保留原文
-```
-
-| 禁令 | 原因 |
-|------|------|
-| 禁止跳跃 Gate | Gate 是工程代码强制执行的，不是建议 |
-| 禁止修改技术栈 | 用户要求修改时明确拒绝 |
-| 禁止一次性读写 >30K 文件 | 防止 context 爆炸 |
-| 禁止读取 base64 图片 | 极度消耗 context |
-| 禁止图片使用 CDN URL 直接引用 | 下载图片到本地 |
-| 禁止在 HANDOFF 前执行 /compact 或 /clear | 防止丢失任务状态 |
-| 禁止代替用户确认 Gate | 用户确认门必须用户口头确认 |
-| 禁止一次性生成完整大页面 | 逐区块生成 |
+**大文件处理**：读前 80 行总结结构 → 读中间总结逻辑 → 读末尾确认完整性 → 基于总结修改，不保留原文。
 
 ## 全局配置
 
@@ -121,17 +103,42 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 场景
 - 验收要求
 
-用户明确确认后，才允许推进到设计阶段。
+🔴 **CHECKPOINT · G2→G3**：用户口头确认 product.md 内容后，才允许推进到设计阶段。禁止代替用户确认。
 
 ### Step 3. 开发
 
 1. 先读取 `references/design_workflow.md`，把其中的设计经验、页面结构方法、视觉检查点、工具组合规则作为本次设计输入
-2. 根据页面类型按需组合 `design-taste-frontend`、`frontend-design`、`React Bits`、`gsap-scrolltrigger`、`motion.js`
-3. 复杂业务控件、表单、表格、后台交互场景按需接入 `antd`，不要默认引入
+2. 根据页面类型选择工具（以下为选择矩阵）：
+
+   | 场景 | 使用工具 |
+   |------|---------|
+   | 通用视觉风格、色彩排版决策 | `design-taste-frontend` + `frontend-design` |
+   | 需要滚动触发动效（parallax/reveal） | `gsap-scrolltrigger` |
+   | 需要组件级微交互动效 | `motion.js` / `React Bits` |
+   | 表单、表格、后台管理类交互控件 | `antd`（仅此场景接入，不默认引入） |
+   | 纯展示型落地页，无复杂交互 | 仅 `design-taste-frontend` + `frontend-design` |
+
+3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在代码中用相对路径引用
 4. 使用选定工具形成设计方案，写入 `design.md`
-5. 用户确认设计后进入开发
+5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
 6. 开发完成后执行 `npm run build`
-7. 基于打包产出的 `dist-single/index.html` 做 CDP 检查和 UI 走查，写入 `audit.md`
+7. 基于打包产出的 `dist-single/index.html` 做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
+   ```
+   ## Audit Report
+   task: <task-id>
+   date: <YYYY-MM-DD>
+   conclusion: PASS | FAIL
+
+   ### 检查项
+   - [ ] 页面正常加载，无 JS 报错
+   - [ ] 所有图片资源加载成功（无 404）
+   - [ ] 移动端适配（375px）正常
+   - [ ] 文案与 product.md 一致
+   - [ ] 动效无卡顿
+
+   ### 失败项（如有）
+   - <描述具体问题>
+   ```
 8. 主动在浏览器打开 `dist-single/index.html`，并把访问地址发给用户
 9. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
 
@@ -178,7 +185,7 @@ DONE
 - `G2 -> G3` 必须带用户确认原话
 - `G4 -> G5` 必须带用户确认原话
 - `G6 -> G7` 必须 `audit.md` 结论为 `PASS`
-- `G8 -> G9` 必须有用户确认可以发布
+- `G8 -> G9` 🔴 **CHECKPOINT · G8→G9**：必须有用户确认可以发布，禁止 agent 自行推进
 - `G9 -> DONE` 禁止用普通 `advance`，只能执行 `publish.js`
 - 用户预览后提修改意见时，必须 `reopen-dev` 回到 `G6_DEVELOPMENT`
 
@@ -201,3 +208,36 @@ DONE
 - 不要把预览建立在开发服务器上。
 - 不要把多个页面任务混在同一个 task 下。
 - 不要跳过 `references/design_workflow.md`，设计和开发前必须先读。
+
+---
+
+## 反模式黑名单（Anti-Patterns）
+
+以下是**绝对禁止**的操作，每条附后果说明：
+
+| # | 禁止做 | 后果 |
+|---|--------|------|
+| 1 | 跳过 Gate 直接推进 | Gate 是代码强制执行的，跳过会导致工作流状态不一致，无法溯源 |
+| 2 | 用 `npm start` / dev server 做预览和审计 | 热更新环境与 dist 产物不一致，审计结论失效 |
+| 3 | 绕过 `publish.js` 手动复制文件发布 | 发布标记缺失，project.json 不更新，平台无法识别产物 |
+| 4 | 代替用户口头确认 Gate（自己写"用户确认了"） | 违反 CHECKPOINT 协议，视为 Gate 未通过 |
+| 5 | 一次性读写 >30K 的大文件 | context 爆炸，导致后续操作截断或丢失 |
+| 6 | 读取 base64 图片内容 | 单张图片可消耗数万 token，直接卡死上下文 |
+| 7 | 使用 CDN URL 直接引用图片 | 外部链接随时失效，打包产物不包含资源 |
+| 8 | 把多个页面任务放同一个 task | 审计、回滚、溯源全部混乱，无法单独回退某个页面 |
+| 9 | 在 HANDOFF 前执行 /compact 或 /clear | Gate 状态和任务进度丢失，无法续改 |
+| 10 | 修改技术栈（擅自换框架/打包工具） | 破坏项目一致性，脚本和 CI 失效 |
+
+---
+
+## 失败处理（Failure Handling）
+
+| 触发条件 | 一线修复 | 仍失败的兜底 |
+|---------|---------|------------|
+| `npm run build` 报错 | 读错误末尾 5 行定位 → 修复对应文件 → 重新 build | 回退到 `G6_DEVELOPMENT`，执行 `gate.js reopen-dev` 并记录原因 |
+| Gate advance 被拒（缺字段） | 执行 `gate.js status` 查看缺失字段 → 补全后重试 advance | 告知用户缺少哪个字段，不得静默跳过 |
+| 图片资源找不到 | 用 `assets/default.jpg` 占位，在 audit.md 中记录缺图 | 询问用户提供图片，不得使用 CDN URL 直接引用 |
+| `publish.js` 执行失败 | 检查 `dist-single/index.html` 是否存在 → 重新 `npm run build` → 重试 | 告知用户失败原因，不得用任何其他方式发布 |
+| Gate 被 block（`gate.js block`） | 执行 `gate.js unblock` 解锁后重新推进 | 若无法 unblock，告知用户具体 block 原因，等待用户决策 |
+| `resolve-project.js` 找不到项目 | 检查 `PROJECTS_DIR` 配置和目录是否存在 | 提示用户：续改只允许操作有 `.webdesign/project.json` 的托管项目 |
+| 审计结论为 FAIL | 读取 `audit.md` 中的失败项 → 回到 `G6_DEVELOPMENT` 修复 | 不得在审计 FAIL 的情况下强行推进到 G8 |
