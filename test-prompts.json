@@ -12,6 +12,6 @@
   {
     "id": 3,
     "prompt": "帮我修改首页的 Hero 区域文案，把标题改成让创作更简单",
-    "expected": "agent 先运行 list-projects.js 找项目，通过 resolve-project.js 确认是托管项目，创建续改 task，修改代码后 npm run build，做静态审计和预览"
+    "expected": "agent 先运行 list-projects.js 找项目，通过 resolve-project.js 确认是托管项目，创建续改 task，修改代码后 npm run build，做静态审计和预览；若需 CDP 截图，单次任务最多截图 2 次"
   }
 ]
