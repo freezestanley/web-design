@@ -25,25 +25,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 审计和预览必须基于 `npm run build` 之后的静态页面，不允许基于 dev server。
 - 续改项目时，只允许操作 `PROJECTS_DIR` 下、且存在 `.webdesign/project.json` 的托管项目。
 
-**大文件处理协议**：
-```
-如果需要读取已有大文件：
-  1. 读取文件前 80 行 → 总结结构
-  2. 读取中间部分 → 总结逻辑
-  3. 读取末尾部分 → 确认完整性
-  4. 基于总结执行修改，不保留原文
-```
-
-| 禁令 | 原因 |
-|------|------|
-| 禁止跳跃 Gate | Gate 是工程代码强制执行的，不是建议 |
-| 禁止修改技术栈 | 用户要求修改时明确拒绝 |
-| 禁止一次性读写 >30K 文件 | 防止 context 爆炸 |
-| 禁止读取 base64 图片 | 极度消耗 context |
-| 禁止图片使用 CDN URL 直接引用 | 下载图片到本地 |
-| 禁止在 HANDOFF 前执行 /compact 或 /clear | 防止丢失任务状态 |
-| 禁止代替用户确认 Gate | 用户确认门必须用户口头确认 |
-| 禁止一次性生成完整大页面 | 逐区块生成 |
+**大文件处理**：读前 80 行总结结构 → 读中间总结逻辑 → 读末尾确认完整性 → 基于总结修改，不保留原文。
 
 ## 全局配置
 
@@ -126,12 +108,37 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 ### Step 3. 开发
 
 1. 先读取 `references/design_workflow.md`，把其中的设计经验、页面结构方法、视觉检查点、工具组合规则作为本次设计输入
-2. 根据页面类型按需组合 `design-taste-frontend`、`frontend-design`、`React Bits`、`gsap-scrolltrigger`、`motion.js`
-3. 复杂业务控件、表单、表格、后台交互场景按需接入 `antd`，不要默认引入
+2. 根据页面类型选择工具（以下为选择矩阵）：
+
+   | 场景 | 使用工具 |
+   |------|---------|
+   | 通用视觉风格、色彩排版决策 | `design-taste-frontend` + `frontend-design` |
+   | 需要滚动触发动效（parallax/reveal） | `gsap-scrolltrigger` |
+   | 需要组件级微交互动效 | `motion.js` / `React Bits` |
+   | 表单、表格、后台管理类交互控件 | `antd`（仅此场景接入，不默认引入） |
+   | 纯展示型落地页，无复杂交互 | 仅 `design-taste-frontend` + `frontend-design` |
+
+3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在代码中用相对路径引用
 4. 使用选定工具形成设计方案，写入 `design.md`
 5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
 6. 开发完成后执行 `npm run build`
-7. 基于打包产出的 `dist-single/index.html` 做 CDP 检查和 UI 走查，写入 `audit.md`
+7. 基于打包产出的 `dist-single/index.html` 做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
+   ```
+   ## Audit Report
+   task: <task-id>
+   date: <YYYY-MM-DD>
+   conclusion: PASS | FAIL
+
+   ### 检查项
+   - [ ] 页面正常加载，无 JS 报错
+   - [ ] 所有图片资源加载成功（无 404）
+   - [ ] 移动端适配（375px）正常
+   - [ ] 文案与 product.md 一致
+   - [ ] 动效无卡顿
+
+   ### 失败项（如有）
+   - <描述具体问题>
+   ```
 8. 主动在浏览器打开 `dist-single/index.html`，并把访问地址发给用户
 9. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
 
