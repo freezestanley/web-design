@@ -121,7 +121,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 场景
 - 验收要求
 
-用户明确确认后，才允许推进到设计阶段。
+🔴 **CHECKPOINT · G2→G3**：用户口头确认 product.md 内容后，才允许推进到设计阶段。禁止代替用户确认。
 
 ### Step 3. 开发
 
@@ -129,7 +129,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 2. 根据页面类型按需组合 `design-taste-frontend`、`frontend-design`、`React Bits`、`gsap-scrolltrigger`、`motion.js`
 3. 复杂业务控件、表单、表格、后台交互场景按需接入 `antd`，不要默认引入
 4. 使用选定工具形成设计方案，写入 `design.md`
-5. 用户确认设计后进入开发
+5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
 6. 开发完成后执行 `npm run build`
 7. 基于打包产出的 `dist-single/index.html` 做 CDP 检查和 UI 走查，写入 `audit.md`
 8. 主动在浏览器打开 `dist-single/index.html`，并把访问地址发给用户
@@ -178,7 +178,7 @@ DONE
 - `G2 -> G3` 必须带用户确认原话
 - `G4 -> G5` 必须带用户确认原话
 - `G6 -> G7` 必须 `audit.md` 结论为 `PASS`
-- `G8 -> G9` 必须有用户确认可以发布
+- `G8 -> G9` 🔴 **CHECKPOINT · G8→G9**：必须有用户确认可以发布，禁止 agent 自行推进
 - `G9 -> DONE` 禁止用普通 `advance`，只能执行 `publish.js`
 - 用户预览后提修改意见时，必须 `reopen-dev` 回到 `G6_DEVELOPMENT`
 
