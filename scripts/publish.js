@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { loadConfig } = require("./lib/load-config");
-const { getSessionAuthor } = require("./lib/session-author");
+const { resolveAuthorFromSession } = require("./lib/session-author");
 const { createDistZip, createSourceZip } = require("./lib/zip");
 const { buildPublishMarker } = require("./lib/publish-marker");
 const config = loadConfig();
@@ -20,6 +20,14 @@ function getTaskDir(projectPath, taskId) {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+function resolveProjectAuthor(projectMeta) {
+  if (projectMeta.author) {
+    return projectMeta.author;
+  }
+
+  return resolveAuthorFromSession();
 }
 
 const rawProjectPath = process.argv[2];
@@ -57,6 +65,7 @@ const sourceZipPath = createSourceZip(projectPath);
 const distZipPath = createDistZip(projectPath);
 
 const projectMeta = readJson(projectMetaPath);
+projectMeta.author = resolveProjectAuthor(projectMeta);
 projectMeta.sourceZipPath = sourceZipPath;
 projectMeta.distZipPath = distZipPath;
 projectMeta.updatedAt = new Date().toISOString();
@@ -72,7 +81,7 @@ workflow.updatedAt = new Date().toISOString();
 fs.writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
 
 process.stdout.write(`${buildPublishMarker({
-  author: getSessionAuthor(),
+  author: projectMeta.author,
   sourceZipPath,
   distZipPath,
   projectName: projectMeta.name,

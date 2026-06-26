@@ -123,7 +123,7 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##902｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##stanley｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
 
   const projectMeta = JSON.parse(
@@ -154,6 +154,10 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
 
 test("publish leaves author empty when session is unavailable", () => {
   const { projectPath, taskId } = setupPublishProject();
+  const projectMetaPath = path.join(projectPath, ".webdesign", "project.json");
+  const projectMeta = JSON.parse(fs.readFileSync(projectMetaPath, "utf8"));
+  projectMeta.author = "";
+  fs.writeFileSync(projectMetaPath, JSON.stringify(projectMeta, null, 2));
   const result = spawnSync(process.execPath, ["scripts/publish.js", projectPath, taskId], {
     cwd: path.resolve(__dirname, ".."),
     encoding: "utf8",
@@ -167,6 +171,50 @@ test("publish leaves author empty when session is unavailable", () => {
     result.stdout,
     /##publishStart##｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
+});
+
+test("publish prefers project author over the current session author", () => {
+  const { projectPath, taskId } = setupPublishProject();
+  const result = spawnSync(process.execPath, ["scripts/publish.js", projectPath, taskId], {
+    cwd: path.resolve(__dirname, ".."),
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      SESSION_KEY: "agent:agent-1:web:902:dm:session-1"
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    result.stdout,
+    /##publishStart##stanley｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+  );
+});
+
+test("publish backfills empty project author from the current session", () => {
+  const { projectPath, taskId } = setupPublishProject();
+  const projectMetaPath = path.join(projectPath, ".webdesign", "project.json");
+  const projectMeta = JSON.parse(fs.readFileSync(projectMetaPath, "utf8"));
+  projectMeta.author = "";
+  fs.writeFileSync(projectMetaPath, JSON.stringify(projectMeta, null, 2));
+
+  const result = spawnSync(process.execPath, ["scripts/publish.js", projectPath, taskId], {
+    cwd: path.resolve(__dirname, ".."),
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      SESSION_KEY: "agent:agent-1:web:902:dm:session-1"
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    result.stdout,
+    /##publishStart##902｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+  );
+
+  const updatedMeta = JSON.parse(fs.readFileSync(projectMetaPath, "utf8"));
+  assert.equal(updatedMeta.author, "902");
 });
 
 test("publish rejects tasks that are not in publish ready gate", () => {

@@ -37,3 +37,12 @@ test("skill contract requires vitectrl-managed dev preview retention", () => {
   assert.match(content, /最多只保留最近 5 个 managed dev preview/);
   assert.match(content, /自动关闭旧服务/);
 });
+
+test("skill contract defines project author as the preferred publish source", () => {
+  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
+  const content = fs.readFileSync(skillPath, "utf8");
+
+  assert.match(content, /project\.json\.author/);
+  assert.match(content, /优先使用.*project\.json\.author/);
+  assert.match(content, /为空.*当前对话.*session/i);
+});
