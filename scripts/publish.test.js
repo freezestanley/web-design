@@ -5,6 +5,24 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync, spawnSync } = require("node:child_process");
 
+function listZipEntries(zipPath) {
+  const output = execFileSync(
+    "python3",
+    [
+      "-c",
+      [
+        "import json, sys, zipfile",
+        "with zipfile.ZipFile(sys.argv[1], 'r') as archive:",
+        "    print(json.dumps(sorted(archive.namelist())))"
+      ].join("\n"),
+      zipPath
+    ],
+    { encoding: "utf8" }
+  );
+
+  return JSON.parse(output);
+}
+
 function setupPublishProject() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-publish-"));
   const projectPath = path.join(tempDir, "demo-project");
@@ -117,18 +135,16 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   assert.match(projectMeta.distZipPath, /\/dist\.zip$/);
   assert.equal(fs.existsSync(projectMeta.sourceZipPath), true);
   assert.equal(fs.existsSync(projectMeta.distZipPath), true);
-  const sourceZipListing = execFileSync("zipinfo", ["-1", projectMeta.sourceZipPath], {
-    encoding: "utf8"
-  });
-  assert.match(sourceZipListing, /^src\/$/m);
-  assert.match(sourceZipListing, /^src\/main\.js$/m);
-  assert.doesNotMatch(sourceZipListing, /^node_modules\//m);
-  assert.doesNotMatch(sourceZipListing, /^dist\.zip$/m);
-  const zipListing = execFileSync("zipinfo", ["-1", projectMeta.distZipPath], { encoding: "utf8" });
-  assert.match(zipListing, /^dist\/$/m);
-  assert.match(zipListing, /^dist\/index\.html$/m);
-  assert.match(zipListing, /^dist-single\/$/m);
-  assert.match(zipListing, /^dist-single\/index\.html$/m);
+  const sourceZipListing = listZipEntries(projectMeta.sourceZipPath);
+  assert.deepEqual(sourceZipListing.includes("src/"), true);
+  assert.deepEqual(sourceZipListing.includes("src/main.js"), true);
+  assert.deepEqual(sourceZipListing.some((entry) => entry.startsWith("node_modules/")), false);
+  assert.deepEqual(sourceZipListing.includes("dist.zip"), false);
+  const zipListing = listZipEntries(projectMeta.distZipPath);
+  assert.deepEqual(zipListing.includes("dist/"), true);
+  assert.deepEqual(zipListing.includes("dist/index.html"), true);
+  assert.deepEqual(zipListing.includes("dist-single/"), true);
+  assert.deepEqual(zipListing.includes("dist-single/index.html"), true);
 
   const workflow = JSON.parse(
     fs.readFileSync(path.join(projectPath, ".webdesign", "tasks", taskId, "workflow.json"), "utf8")
