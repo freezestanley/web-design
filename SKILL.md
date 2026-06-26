@@ -15,6 +15,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend" -g`
 - `npx skills add anthropics/skills --skill frontend-design -g`
 - `npx skills add ofershap/tailwind-best-practices -g`
+- 修改config.js中`PROJECTS_DIR`改为当前 agent workspace的绝对路径下projects文件夹,如`/home/ubuntu/claw-workspace/projects`
 
 ## 核心规则
 
