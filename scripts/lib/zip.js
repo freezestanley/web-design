@@ -3,11 +3,12 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 function createZipFromEntries(cwd, outputPath, entries) {
-  if (fs.existsSync(outputPath)) {
-    fs.rmSync(outputPath, { force: true });
+  const absoluteOutputPath = path.resolve(outputPath);
+  if (fs.existsSync(absoluteOutputPath)) {
+    fs.rmSync(absoluteOutputPath, { force: true });
   }
-  execFileSync("zip", ["-qr", outputPath, ...entries], { cwd, stdio: "pipe" });
-  return outputPath;
+  execFileSync("zip", ["-qr", absoluteOutputPath, ...entries], { cwd, stdio: "pipe" });
+  return absoluteOutputPath;
 }
 
 function createSourceZip(projectPath) {

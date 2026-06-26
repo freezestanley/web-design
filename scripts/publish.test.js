@@ -85,17 +85,27 @@ function setupPublishProject() {
 
 test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => {
   const { projectPath, taskId } = setupPublishProject();
-  const result = spawnSync(process.execPath, ["scripts/publish.js", projectPath, taskId], {
+  const relativeProjectPath = path.relative(path.resolve(__dirname, ".."), projectPath);
+  const result = spawnSync(process.execPath, ["scripts/publish.js", relativeProjectPath, taskId], {
     cwd: path.resolve(__dirname, ".."),
-    encoding: "utf8"
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      SESSION_KEY: "agent:agent-1:web:902:dm:session-1"
+    }
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /##publishStart##stanley｜.*source\.zip｜.*dist\.zip｜demo-project｜Demo summary##publishEnd##/);
+  assert.match(
+    result.stdout,
+    /##publishStart##902｜\/.*demo-project-source\.zip｜\/.*demo-project-dist\.zip｜demo-project｜Demo summary##publishEnd##/
+  );
 
   const projectMeta = JSON.parse(
     fs.readFileSync(path.join(projectPath, ".webdesign", "project.json"), "utf8")
   );
+  assert.equal(path.isAbsolute(projectMeta.sourceZipPath), true);
+  assert.equal(path.isAbsolute(projectMeta.distZipPath), true);
   assert.equal(fs.existsSync(projectMeta.sourceZipPath), true);
   assert.equal(fs.existsSync(projectMeta.distZipPath), true);
   const zipListing = execFileSync("zipinfo", ["-1", projectMeta.distZipPath], { encoding: "utf8" });
@@ -108,6 +118,23 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
     fs.readFileSync(path.join(projectPath, ".webdesign", "tasks", taskId, "workflow.json"), "utf8")
   );
   assert.equal(workflow.currentGate, "DONE");
+});
+
+test("publish leaves author empty when session is unavailable", () => {
+  const { projectPath, taskId } = setupPublishProject();
+  const result = spawnSync(process.execPath, ["scripts/publish.js", projectPath, taskId], {
+    cwd: path.resolve(__dirname, ".."),
+    encoding: "utf8",
+    env: {
+      ...process.env
+    }
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    result.stdout,
+    /##publishStart##｜\/.*demo-project-source\.zip｜\/.*demo-project-dist\.zip｜demo-project｜Demo summary##publishEnd##/
+  );
 });
 
 test("publish rejects tasks that are not in publish ready gate", () => {

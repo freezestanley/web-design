@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { loadConfig } = require("./lib/load-config");
+const { getSessionAuthor } = require("./lib/session-author");
 const { buildTaskId, writeProjectMeta } = require("./lib/project-state");
 const config = loadConfig();
 
@@ -129,6 +130,7 @@ const nowIso = now.toISOString();
 writeProjectMeta(projectPath, {
   name: projectName,
   summary,
+  author: getSessionAuthor(),
   template: path.basename(config.TEMPLATE_DIR),
   createdAt: nowIso,
   updatedAt: nowIso,

@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { loadConfig } = require("./lib/load-config");
+const { getSessionAuthor } = require("./lib/session-author");
 const { createDistZip, createSourceZip } = require("./lib/zip");
 const { buildPublishMarker } = require("./lib/publish-marker");
 const config = loadConfig();
@@ -21,12 +22,14 @@ function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-const projectPath = process.argv[2];
+const rawProjectPath = process.argv[2];
 const taskId = process.argv[3];
 
-if (!projectPath || !taskId) {
+if (!rawProjectPath || !taskId) {
   fail("Usage: node scripts/publish.js <project-path> <task-id>");
 }
+
+const projectPath = path.resolve(rawProjectPath);
 
 const workflowPath = path.join(getTaskDir(projectPath, taskId), "workflow.json");
 const projectMetaPath = path.join(projectPath, config.WEBDESIGN_DIR, "project.json");
@@ -69,7 +72,7 @@ workflow.updatedAt = new Date().toISOString();
 fs.writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
 
 process.stdout.write(`${buildPublishMarker({
-  author: projectMeta.author || "",
+  author: getSessionAuthor(),
   sourceZipPath,
   distZipPath,
   projectName: projectMeta.name,

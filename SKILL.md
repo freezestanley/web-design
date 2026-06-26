@@ -166,8 +166,17 @@ node scripts/publish.js <project-path> <task-id>
 发布标记格式固定为：
 
 ```text
-##publishStart##作者｜源码zip路径｜dist.zip路径｜项目名称｜项目简介##publishEnd##
+##publishStart##session.userAccount｜源码zip绝对路径｜dist.zip绝对路径｜项目名称｜项目简介##publishEnd##
 ```
+
+作者字段规则：
+
+- 从运行时 `SESSION_KEY` 读取 session key
+- 若 `SESSION_KEY` 缺失，可兼容读取 `SESSION`
+- session 格式按 `agent:<agentId>:<channel>:<userAccount>:dm:<sessionNo>` 解析
+- 作者固定取 `userAccount`
+- `project.json.author` 和发布标记里的作者字段都使用这套规则
+- 若运行时取不到 session key 或 `userAccount` 为空，则作者字段留空
 
 ## Gate 状态机
 

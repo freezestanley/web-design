@@ -15,7 +15,8 @@ test("init-project copies scaffold and creates .webdesign task files", () => {
       env: {
         ...process.env,
         WEB_DESIGN_PROJECTS_DIR: tempDir,
-        WEB_DESIGN_NOW: "2026-06-25T10:20:30.000Z"
+        WEB_DESIGN_NOW: "2026-06-25T10:20:30.000Z",
+        SESSION_KEY: "agent:agent-1:web:902:dm:session-1"
       },
       encoding: "utf8"
     }
@@ -35,6 +36,7 @@ test("init-project copies scaffold and creates .webdesign task files", () => {
   );
   assert.equal(projectMeta.name, "demo-project");
   assert.equal(projectMeta.summary, "Demo project");
+  assert.equal(projectMeta.author, "902");
   assert.equal(projectMeta.currentTaskId, taskId);
 
   const taskDir = path.join(projectPath, ".webdesign", "tasks", taskId);
