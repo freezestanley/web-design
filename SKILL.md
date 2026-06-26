@@ -19,6 +19,8 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 ## 核心规则
 
 - 页面相关的新建、修改、编译、预览、发布，都必须走 `web-design`。
+- 禁止修改技术栈（擅自换框架/打包工具），否则破坏项目一致性，脚本和 CI 失效。
+- 禁止使用其他项目模版只允许使用template/scaffold,否则破坏项目一致性，脚本和 CI 失效。
 - 禁止跳过 SOP Gate。
 - 禁止未确认就推进确认门。
 - 禁止绕过 `publish.js` 直接发布。
@@ -114,17 +116,17 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
    | 场景 | 使用工具 |
    |------|---------|
-   | 通用视觉风格、色彩排版决策 | `design-taste-frontend` + `frontend-design` |
+   | 通用视觉风格、色彩排版决策 | `design-taste-frontend` |
    | 需要滚动触发动效（parallax/reveal） | `gsap-scrolltrigger` |
    | 需要组件级微交互动效 | `motion.js` / `React Bits` |
    | 表单、表格、后台管理类交互控件 | `antd`（仅此场景接入，不默认引入） |
-   | 纯展示型落地页，无复杂交互 | 仅 `design-taste-frontend` + `frontend-design` |
+   | 纯展示型落地页，无复杂交互 | 仅 `design-taste-frontend` |
 
 3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在代码中用相对路径引用
 4. 使用选定工具形成设计方案，写入 `design.md`
 5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
-6. 开发完成后执行 `npm run build`
-7. 基于打包产出的 `dist-single/index.html` 做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
+6. 开发完成后执行 `npm run dev`
+7. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
    - 截图预算固定为单次任务最多 2 次
    - 优先分配为 1 次桌面全页截图 + 1 次 375px 移动端截图
    - 若首轮截图已足够定位问题，剩余额度保留，不得为了“多看几眼”继续截图
@@ -144,7 +146,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
    ### 失败项（如有）
    - <描述具体问题>
    ```
-8. 主动在浏览器打开 `dist-single/index.html`，并把访问地址发给用户
+8. 主动在浏览器打开启动的服务,并把访问地址发给用户
    - 若自动打开失败，或用户侧出现“页面拒绝链接”等异常，必须补发一条站在用户视角的手动预览提示
    - 提示文案固定使用纯文本句式，例如：`请用浏览器打开 127.0.0.1:4173 预览页面。`
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接、富文本链接或“点这里打开”一类表述
@@ -208,7 +210,7 @@ DONE
 - `G2 -> G3` 必须带用户确认原话
 - `G4 -> G5` 必须带用户确认原话
 - `G6 -> G7` 必须 `audit.md` 结论为 `PASS`
-- `G8 -> G9` 🔴 **CHECKPOINT · G8→G9**：必须有用户确认可以发布，禁止 agent 自行推进
+- `G8 -> G9` 必须有用户确认可以发布 如: "请预览是否需要修改,若无修改将进入发布流程？"，禁止 agent 自行推进
 - `G9 -> DONE` 禁止用普通 `advance`，只能执行 `publish.js`
 - 用户预览后提修改意见时，必须 `reopen-dev` 回到 `G6_DEVELOPMENT`
 

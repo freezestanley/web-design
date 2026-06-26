@@ -213,8 +213,8 @@
 建议顺序：
 
 1. `references/design/landing.md`
-2. `design-taste-frontend`
-3. `frontend-design`
+2. `frontend-design`
+3. `design-taste-frontend`
 4. `tailwind-best-practices`
 5. 按需加 `motion.js`
 6. 若有局部展示模块需要成品级表现，可按需参考 `React Bits`
@@ -225,8 +225,8 @@
 建议顺序：
 
 1. `references/design/ppt.md`
-2. `design-taste-frontend`
-3. `frontend-design`
+2. `frontend-design`
+3. `design-taste-frontend`
 4. `gsap-scrolltrigger`
 5. `tailwind-best-practices`
 6. 按需补 `motion.js`
@@ -255,8 +255,8 @@
 建议顺序：
 
 1. `references/design/ppt.md`
-2. `design-taste-frontend`
-3. `frontend-design`
+2. `frontend-design`
+3. `design-taste-frontend`
 4. `gsap-scrolltrigger`
 5. `tailwind-best-practices`
 6. 按需补 `React Bits`

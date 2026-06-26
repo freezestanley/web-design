@@ -28,6 +28,8 @@ test("scaffold contains regular app structure files", () => {
     "src/app/router.jsx",
     "src/app/providers.jsx",
     "src/pages/home/index.jsx",
+    "src/pages/unauthorized/index.jsx",
+    "src/shared/auth/index.js",
     "src/stores/app-store.js",
     "src/styles/main.css"
   ];
@@ -56,4 +58,22 @@ test("singlefile vite config wires react and vite-plugin-singlefile", () => {
   );
   assert.match(singlefileConfig, /plugins:\s*\[\s*react\(\),\s*viteSingleFile\(\)/);
   assert.match(singlefileConfig, /outDir:\s*"dist-single"/);
+});
+
+test("scaffold router includes unauthorized route and auth guard wiring", () => {
+  const routerConfig = fs.readFileSync(path.join(scaffoldRoot, "src/app/router.jsx"), "utf8");
+
+  assert.match(routerConfig, /path:\s*"\/unauthorized"/);
+  assert.match(routerConfig, /requireAuth:\s*true/);
+  assert.match(routerConfig, /validateSsoAccess/);
+  assert.match(routerConfig, /redirectToUnauthorized/);
+});
+
+test("unauthorized page contains required copy", () => {
+  const unauthorizedPage = fs.readFileSync(
+    path.join(scaffoldRoot, "src/pages/unauthorized/index.jsx"),
+    "utf8"
+  );
+
+  assert.match(unauthorizedPage, /抱歉您无权限查看当前页面/);
 });

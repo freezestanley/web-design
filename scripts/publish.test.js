@@ -12,7 +12,13 @@ function setupPublishProject() {
   const taskDir = path.join(projectPath, ".webdesign", "tasks", taskId);
 
   fs.mkdirSync(path.join(projectPath, "src"), { recursive: true });
+  fs.mkdirSync(path.join(projectPath, "node_modules", "demo-dep"), { recursive: true });
   fs.mkdirSync(taskDir, { recursive: true });
+  fs.writeFileSync(path.join(projectPath, "src", "main.js"), "console.log('demo');");
+  fs.writeFileSync(
+    path.join(projectPath, "node_modules", "demo-dep", "index.js"),
+    "module.exports = 'demo-dep';"
+  );
 
   fs.writeFileSync(
     path.join(projectPath, "package.json"),
@@ -85,6 +91,7 @@ function setupPublishProject() {
 
 test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => {
   const { projectPath, taskId } = setupPublishProject();
+  fs.writeFileSync(path.join(projectPath, "dist.zip"), "stale dist zip");
   const relativeProjectPath = path.relative(path.resolve(__dirname, ".."), projectPath);
   const result = spawnSync(process.execPath, ["scripts/publish.js", relativeProjectPath, taskId], {
     cwd: path.resolve(__dirname, ".."),
@@ -98,7 +105,7 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##902｜\/.*demo-project-source\.zip｜\/.*demo-project-dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##902｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
 
   const projectMeta = JSON.parse(
@@ -106,8 +113,17 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   );
   assert.equal(path.isAbsolute(projectMeta.sourceZipPath), true);
   assert.equal(path.isAbsolute(projectMeta.distZipPath), true);
+  assert.match(projectMeta.sourceZipPath, /\/project\.zip$/);
+  assert.match(projectMeta.distZipPath, /\/dist\.zip$/);
   assert.equal(fs.existsSync(projectMeta.sourceZipPath), true);
   assert.equal(fs.existsSync(projectMeta.distZipPath), true);
+  const sourceZipListing = execFileSync("zipinfo", ["-1", projectMeta.sourceZipPath], {
+    encoding: "utf8"
+  });
+  assert.match(sourceZipListing, /^src\/$/m);
+  assert.match(sourceZipListing, /^src\/main\.js$/m);
+  assert.doesNotMatch(sourceZipListing, /^node_modules\//m);
+  assert.doesNotMatch(sourceZipListing, /^dist\.zip$/m);
   const zipListing = execFileSync("zipinfo", ["-1", projectMeta.distZipPath], { encoding: "utf8" });
   assert.match(zipListing, /^dist\/$/m);
   assert.match(zipListing, /^dist\/index\.html$/m);
@@ -133,7 +149,7 @@ test("publish leaves author empty when session is unavailable", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##｜\/.*demo-project-source\.zip｜\/.*demo-project-dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
 });
 

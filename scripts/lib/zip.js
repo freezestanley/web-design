@@ -12,13 +12,13 @@ function createZipFromEntries(cwd, outputPath, entries) {
 }
 
 function createSourceZip(projectPath) {
-  const outputPath = path.join(projectPath, `${path.basename(projectPath)}-source.zip`);
+  const outputPath = path.join(projectPath, "project.zip");
   const entries = fs.readdirSync(projectPath).filter((entry) => !entry.endsWith(".zip") && entry !== "node_modules");
   return createZipFromEntries(projectPath, outputPath, entries);
 }
 
 function createDistZip(projectPath) {
-  const outputPath = path.join(projectPath, `${path.basename(projectPath)}-dist.zip`);
+  const outputPath = path.join(projectPath, "dist.zip");
   return createZipFromEntries(projectPath, outputPath, ["dist", "dist-single"]);
 }
 

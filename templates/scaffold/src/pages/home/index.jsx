@@ -22,7 +22,8 @@ export default function HomePage() {
           </h1>
           <p className="max-w-2xl text-base leading-7 text-ink/72 sm:text-lg">
             A clean React scaffold for the web-design SOP. Replace this page with
-            the confirmed design, route structure, and motion system for the task.
+            the confirmed design, route structure, motion system, and real SSO
+            validation for the task.
           </p>
         </div>
 
