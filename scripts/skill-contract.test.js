@@ -28,3 +28,12 @@ test("skill contract requires plain-text manual preview fallback copy", () => {
   assert.match(content, /浏览地址必须以纯文本形式输出/);
   assert.doesNotMatch(content, /预览地址必须.*Markdown 链接[^]*允许/);
 });
+
+test("skill contract requires vitectrl-managed dev preview retention", () => {
+  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
+  const content = fs.readFileSync(skillPath, "utf8");
+
+  assert.match(content, /node scripts\/vitectrl\/dev-preview\.js start <project-path>/);
+  assert.match(content, /最多只保留最近 5 个 managed dev preview/);
+  assert.match(content, /自动关闭旧服务/);
+});

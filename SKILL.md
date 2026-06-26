@@ -125,7 +125,10 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在代码中用相对路径引用
 4. 使用选定工具形成设计方案，写入 `design.md`
 5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
-6. 开发完成后执行 `npm run dev`
+6. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
+   - 该脚本负责统一启动 dev preview，并自动治理由 `web-design` 管理过的 Vite 服务
+   - 同一 `project-path` 若已有旧的 managed dev preview，启动新服务前必须自动关闭旧服务
+   - 全局最多只保留最近 5 个 managed dev preview；超出的最老服务必须自动关闭释放端口
 7. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
    - 截图预算固定为单次任务最多 2 次
    - 优先分配为 1 次桌面全页截图 + 1 次 375px 移动端截图
@@ -224,6 +227,7 @@ DONE
 - `node scripts/gate.js block <project-path> <task-id> --reason "..."`
 - `node scripts/gate.js unblock <project-path> <task-id>`
 - `node scripts/gate.js reopen-dev <project-path> <task-id> --reason "..."`
+- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path]`
 - `node scripts/publish.js <project-path> <task-id>`
 
 ## 行为约束
