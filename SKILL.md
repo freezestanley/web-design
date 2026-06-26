@@ -163,7 +163,7 @@ node scripts/publish.js <project-path> <task-id>
 发布时必须：
 
 - 再次执行 `npm run build`
-- 打出源码 zip
+- 打出源码 `project.zip`
 - 打出包含 `dist` 和 `dist-single` 的 `dist.zip`
 - 回写 `.webdesign/project.json`
 - 输出发布标记
