@@ -54,12 +54,8 @@ if (workflow.blocked) {
 execFileSync("npm", ["run", "build"], { cwd: projectPath, stdio: "pipe" });
 
 const distPath = path.join(projectPath, "dist");
-const distSinglePath = path.join(projectPath, "dist-single");
 if (!fs.existsSync(distPath)) {
   fail("Build completed without dist output");
-}
-if (!fs.existsSync(distSinglePath)) {
-  fail("Build completed without dist-single output");
 }
 
 const projectMeta = readJson(projectMetaPath);

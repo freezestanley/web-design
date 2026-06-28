@@ -181,7 +181,7 @@ node scripts/publish.js <project-path> <task-id>
 - 再次执行 `npm run build`
 - 从 `.webdesign/manifest.json` 生成项目根目录 `manifest.json`
 - 打出源码 `project.zip`
-- 打出 zip 包根目录包含 `manifest.json`、并同时包含 `dist` 和 `dist-single` 的 `dist.zip`
+- 打出 zip 包根目录包含 `manifest.json` 和 `dist` 的 `dist.zip`
 - 回写 `.webdesign/project.json`
 - 输出发布标记
 
@@ -287,7 +287,7 @@ DONE
 | `npm run build` 报错 | 读错误末尾 5 行定位 → 修复对应文件 → 重新 build | 回退到 `G6_DEVELOPMENT`，执行 `gate.js reopen-dev` 并记录原因 |
 | Gate advance 被拒（缺字段） | 执行 `gate.js status` 查看缺失字段 → 补全后重试 advance | 告知用户缺少哪个字段，不得静默跳过 |
 | 图片资源找不到 | 从 `src/assets` `import defaultImage from ".../assets/default.jpg"` 作为占位，在 audit.md 中记录缺图 | 询问用户提供图片，不得使用 CDN URL 直接引用 |
-| `publish.js` 执行失败 | 检查 `dist-single/index.html` 是否存在 → 重新 `npm run build` → 重试 | 告知用户失败原因，不得用任何其他方式发布 |
+| `publish.js` 执行失败 | 检查 `dist/index.html` 是否存在 → 重新 `npm run build` → 重试 | 告知用户失败原因，不得用任何其他方式发布 |
 | Gate 被 block（`gate.js block`） | 执行 `gate.js unblock` 解锁后重新推进 | 若无法 unblock，告知用户具体 block 原因，等待用户决策 |
 | `resolve-project.js` 找不到项目 | 检查 `PROJECTS_DIR` 配置和目录是否存在 | 提示用户：续改只允许操作有 `.webdesign/project.json` 的托管项目 |
 | 审计结论为 FAIL | 读取 `audit.md` 中的失败项 → 回到 `G6_DEVELOPMENT` 修复 | 不得在审计 FAIL 的情况下强行推进到 G8 |
