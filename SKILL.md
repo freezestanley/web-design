@@ -116,6 +116,33 @@ import defaultImage from "../../assets/default.jpg";
 - 场景
 - 验收要求
 
+**API 接口收集规范**：
+
+收集 API 接口时，必须同时明确以下两项，缺一不可：
+
+1. **接口路径列表**：每条接口的方法 + 路径，例如 `GET /api/app-center/projects`
+2. **upstreamOrigin**：接口所在的服务域名（含协议，不含路径，不含尾斜杠），例如 `http://api.example.com`
+
+若用户未提供 upstreamOrigin，必须在此阶段补问，不允许用占位符或猜测值继续推进。
+
+**写入 product.md 后，立即执行 proxy routes 提取**：
+
+```bash
+node scripts/lib/manifest-proxy.js <project-path> <upstream-origin> --api-doc <接口文档路径>
+# 或通过 stdin 传入接口文档文本：
+echo "<接口文档文本>" | node scripts/lib/manifest-proxy.js <project-path> <upstream-origin>
+```
+
+提取规则（脚本自动执行，此处说明供 AI 理解和校验）：
+
+- 从每条接口路径中剥离 `/api` 前缀后取第一段作为 prefix
+  - `/api/app-center/projects` → prefix = `/app-center`
+  - `/app-center/projects`（无 `/api` 前缀）→ prefix = `/app-center`
+- 同 upstreamOrigin 下相同 prefix 自动去重
+- 结果按前缀长度倒序写入 `.webdesign/manifest.json` 的 `proxy.routes`
+
+执行后检查脚本输出的 route 列表是否与接口文档吻合，如有遗漏手动补充。
+
 🔴 **CHECKPOINT · G2→G3**：用户口头确认 product.md 内容后，才允许推进到设计阶段。禁止代替用户确认。
 
 ### Step 3. 开发
@@ -245,6 +272,10 @@ DONE
 - `node scripts/gate.js reopen-dev <project-path> <task-id> --reason "..."`
 - `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path]`
 - `node scripts/publish.js <project-path> <task-id>`
+- `node scripts/lib/manifest-proxy.js <project-path> <upstream-origin> [--api-doc <path>]`
+  - 从接口文档提取 proxy routes 并写入 `.webdesign/manifest.json`
+  - 不传 `--api-doc` 时从 stdin 读取文档文本
+  - **必须在 G2（product.md 写入后）阶段执行，G2→G3 推进前完成**
 
 ## 行为约束
 
@@ -277,6 +308,8 @@ DONE
 | 11 | 在 HANDOFF 前执行 /compact 或 /clear | Gate 状态和任务进度丢失，无法续改 |
 | 12 | 单次任务截图超过 2 次 | CDP 截图 token 成本过高，容易把上下文和审计成本打爆 |
 | 13 | 修改技术栈（擅自换框架/打包工具） | 破坏项目一致性，脚本和 CI 失效 |
+| 14 | 在 manifest 模板中手写 prefix（如 `/openapi`）而不执行 `manifest-proxy.js` | prefix 与前端实际接口路径不匹配，部署后代理 403 |
+| 15 | 未明确 upstreamOrigin 就推进到 G3 | proxy.routes 缺少目标域名，平台代理服务无法转发，等同于代理未配置 |
 
 ---
 

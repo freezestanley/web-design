@@ -5,12 +5,6 @@
   "entry": "dist/index.html",
   "owner": "<project.json.author or empty>",
   "proxy": {
-    "routes": [
-      {
-        "prefix": "/openapi",
-        "upstreamOrigin": "http://4335314-za-aigc-harness-studio.test.za.biz",
-        "methods": ["GET"]
-      }
-    ]
+    "routes": []
   }
 }

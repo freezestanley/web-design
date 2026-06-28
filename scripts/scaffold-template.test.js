@@ -99,3 +99,40 @@ test("scaffold home page copy preserves auth and router wiring by default", () =
   assert.match(homePage, /explicitly requires a public page/i);
   assert.doesNotMatch(homePage, /replace this page with[^]*route structure[^]*real SSO/i);
 });
+
+test("axios-instance exports dedupeApiPrefix", () => {
+  const src = fs.readFileSync(
+    path.join(scaffoldRoot, "src/shared/http/axios-instance.js"),
+    "utf8"
+  );
+  // 函数声明处导出，不允许重复的具名 re-export
+  assert.match(src, /export function dedupeApiPrefix/);
+  assert.doesNotMatch(src, /export \{[^}]*dedupeApiPrefix[^}]*\}/);
+});
+
+test("dedupeApiPrefix strips leading /api when baseURL ends with /api", () => {
+  const src = fs.readFileSync(
+    path.join(scaffoldRoot, "src/shared/http/axios-instance.js"),
+    "utf8"
+  );
+
+  // 函数体必须包含对 baseURL.endsWith('/api') 的判断
+  assert.match(src, /baseURL.*endsWith.*['"]\/api['"]/);
+  // 函数体必须包含对 url.startsWith('/api') 的判断
+  assert.match(src, /url.*startsWith.*['"]\/api['"]/);
+  // 函数体必须有剥除前 4 个字符的语句（'/api'.length === 4）
+  assert.match(src, /url\.slice\(4\)/);
+});
+
+test("axios request interceptor calls dedupeApiPrefix before sending", () => {
+  const src = fs.readFileSync(
+    path.join(scaffoldRoot, "src/shared/http/axios-instance.js"),
+    "utf8"
+  );
+
+  // 拦截器内必须调用 dedupeApiPrefix，且结果赋回 config.url
+  assert.match(src, /config\.url\s*=\s*dedupeApiPrefix\s*\(/);
+  // 调用必须在 interceptors.request.use 回调内
+  const interceptorBlock = src.slice(src.indexOf("interceptors.request.use"));
+  assert.match(interceptorBlock, /dedupeApiPrefix/);
+});

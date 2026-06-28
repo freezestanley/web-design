@@ -107,5 +107,6 @@ module.exports = {
   getManifestTemplatePath,
   getRootManifestPath,
   renderManifest,
-  sortRoutesByPrefixLength
+  sortRoutesByPrefixLength,
+  validateManifest
 };

@@ -23,6 +23,31 @@ export function buildApiBase(basename) {
 }
 
 /**
+ * 剥除请求 url 开头多余的 /api 前缀，防止 baseURL 已含 /api 时出现双重 /api/api/。
+ *
+ * 触发条件：baseURL 以 /api 结尾（生产环境 clawmatic 注入），且 url 以 /api/ 或 /api 结尾开头。
+ *
+ * 规则（只在确认 baseURL 含 /api 时才剥）：
+ *   baseURL = '/apps/za/demo/api', url = '/api/app-center/list'
+ *     → url = '/app-center/list'
+ *   baseURL = '/apps/za/demo/api', url = '/app-center/list'（正常写法）
+ *     → url 不变
+ *   baseURL = undefined / 不含 /api（开发期，Vite proxy 处理）
+ *     → url 不变
+ *
+ * @param {string|undefined} baseURL
+ * @param {string} url
+ * @returns {string}
+ */
+export function dedupeApiPrefix(baseURL, url) {
+  if (!baseURL || !baseURL.endsWith('/api')) return url
+  if (!url || !url.startsWith('/api')) return url
+  // /api 后面必须紧跟 / 或字符串结束，避免误剥 /api-v2 等路径
+  if (url.length > 4 && url[4] !== '/') return url
+  return url.slice(4) || '/'
+}
+
+/**
  * 在请求发出时（而非模块加载时）读取 __BASENAME__，
  * 避免宿主延后注入导致模块顶层求值拿到 undefined。
  *
@@ -68,6 +93,12 @@ httpClient.interceptors.request.use((config) => {
     config.baseURL = resolveApiBase()
   }
 
+  // 剥除 url 中多余的 /api 前缀，防止 baseURL 已含 /api 时出现 /api/api/ 双重前缀
+  // 业务层 url 无论写 '/api/xxx' 还是 '/xxx' 都能正确转发
+  if (config.url) {
+    config.url = dedupeApiPrefix(config.baseURL, config.url)
+  }
+
   const headers = {
     'X-Requested-With': 'XMLHttpRequest',
     'X-Service-Name': SERVICE_NAME,
@@ -106,4 +137,3 @@ httpClient.interceptors.response.use(
 )
 
 export default httpClient
-export { resolveApiBase, buildApiBase }
