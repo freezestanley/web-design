@@ -17,8 +17,19 @@ function ensureDevEnvLocal(projectPath) {
     content = fs.readFileSync(envLocalPath, "utf8");
     if (content.includes("VITE_SSO_BYPASS=")) return;
   }
+
   const separator = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
-  fs.writeFileSync(envLocalPath, content + separator + bypassLine + "\n", "utf8");
+  const proxyHint = [
+    "",
+    "# 开发期接口代理（格式：VITE_DEV_PROXY_<KEY>=<manifest prefix>|<上游 origin>）",
+    "# 示例：VITE_DEV_PROXY_USER=/user|https://user-service.example.com",
+  ].join("\n");
+
+  fs.writeFileSync(
+    envLocalPath,
+    content + separator + bypassLine + "\n" + proxyHint + "\n",
+    "utf8"
+  );
 }
 
 function defaultSpawnArgs(port) {

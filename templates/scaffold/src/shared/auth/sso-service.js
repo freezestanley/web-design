@@ -91,6 +91,74 @@ export async function getSsoUserInfo() {
 }
 
 // ---------------------------------------------------------------------------
+// 应用权限校验
+// ---------------------------------------------------------------------------
+
+/**
+ * 查询当前账号是否有权限访问当前应用
+ *
+ * 接口：GET /openapi/app-projects/{projectNo}/permission?account={account}
+ * 域名：http://4335314-za-aigc-harness-studio.test.za.biz（通过 clawmatic 代理转发）
+ * 代理前缀：/openapi（见 .webdesign/manifest.json proxy.routes）
+ *
+ * 返回：
+ *   { appStatus: 'ONLINE'|'OFFLINE', hasPermission: boolean }
+ *
+ * 调用方判断优先级（由本函数统一处理）：
+ *   1. appStatus === 'OFFLINE' → 应用已下线，无权访问
+ *   2. hasPermission === false → 账号不在权限范围内
+ *   两者均满足才允许访问
+ *
+ * @param {string} account  当前登录账号，从 SSO userinfo 取 account 字段
+ * @returns {Promise<{ allowed: boolean, reason: 'offline'|'no_permission'|null }>}
+ */
+export async function checkAppPermission(account) {
+  // window.__PROJECT_NO__ 由 clawmatic 注入，值为当前应用的 projectNo
+  const projectNo =
+    typeof window !== 'undefined' ? window.__PROJECT_NO__ : undefined
+
+  if (!projectNo) {
+    // 本地开发未注入时直接放行，不阻断开发流程
+    console.warn('[auth] window.__PROJECT_NO__ 未注入，跳过权限校验（仅本地开发）')
+    return { allowed: true, reason: null }
+  }
+
+  // resolveApiBase 在请求时读取，保证 __BASENAME__ 已注入
+  const { resolveApiBase } = await import('../http/axios-instance')
+  const base = resolveApiBase() || ''
+  const url = `${base}/openapi/app-projects/${encodeURIComponent(projectNo)}/permission?account=${encodeURIComponent(account)}`
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-Service-Name': SERVICE_NAME,
+      'X-Usercenter-Session': getSessionId() || '',
+    },
+  })
+
+  if (!res.ok) {
+    // 权限服务异常，按无权限处理，避免意外放行
+    throw new Error(`permission check failed: ${res.status}`)
+  }
+
+  const json = await res.json()
+  if (!json.success) {
+    throw new Error(json.message || 'permission check error')
+  }
+
+  const { appStatus, hasPermission } = json.data || {}
+
+  if (appStatus === 'OFFLINE') {
+    return { allowed: false, reason: 'offline' }
+  }
+  if (!hasPermission) {
+    return { allowed: false, reason: 'no_permission' }
+  }
+  return { allowed: true, reason: null }
+}
+
+// ---------------------------------------------------------------------------
 // SSO 跳转 URL 构建
 // ---------------------------------------------------------------------------
 

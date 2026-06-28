@@ -46,10 +46,41 @@ function validateManifest(manifest) {
     if (!route || typeof route.prefix !== "string" || !route.prefix) {
       throw new Error("manifest proxy route requires prefix");
     }
-    if (typeof route.targetKey !== "string" || !route.targetKey) {
-      throw new Error("manifest proxy route requires targetKey");
+    // targetKey 与 upstreamOrigin 二选一，均缺才报错，共存则报错
+    const hasTargetKey = typeof route.targetKey === "string" && route.targetKey;
+    const hasUpstreamOrigin = typeof route.upstreamOrigin === "string" && route.upstreamOrigin;
+    if (!hasTargetKey && !hasUpstreamOrigin) {
+      throw new Error(`manifest proxy route "${route.prefix}" requires targetKey or upstreamOrigin`);
+    }
+    if (hasTargetKey && hasUpstreamOrigin) {
+      throw new Error(
+        `manifest proxy route "${route.prefix}" cannot have both targetKey and upstreamOrigin, choose one`
+      );
+    }
+    // upstreamOrigin 格式校验：必须含协议、不含路径、不带尾斜杠
+    if (hasUpstreamOrigin) {
+      if (!/^https?:\/\/[^/]+$/.test(route.upstreamOrigin)) {
+        throw new Error(
+          `manifest proxy route "${route.prefix}" upstreamOrigin must be origin only (e.g. https://example.com), got: ${route.upstreamOrigin}`
+        );
+      }
     }
   }
+}
+
+/**
+ * 对 proxy.routes 按前缀长度倒序排序
+ * 确保精确前缀（/user/profile）排在宽泛前缀（/user）之前
+ */
+function sortRoutesByPrefixLength(manifest) {
+  if (!manifest.proxy || !Array.isArray(manifest.proxy.routes)) return manifest;
+  return {
+    ...manifest,
+    proxy: {
+      ...manifest.proxy,
+      routes: [...manifest.proxy.routes].sort((a, b) => b.prefix.length - a.prefix.length)
+    }
+  };
 }
 
 function renderManifest(projectPath, projectMeta) {
@@ -61,7 +92,8 @@ function renderManifest(projectPath, projectMeta) {
   }
 
   const template = JSON.parse(fs.readFileSync(templatePath, "utf8"));
-  const manifest = replaceManifestPlaceholders(template, projectMeta);
+  let manifest = replaceManifestPlaceholders(template, projectMeta);
+  manifest = sortRoutesByPrefixLength(manifest);
   validateManifest(manifest);
   fs.writeFileSync(rootManifestPath, JSON.stringify(manifest, null, 2));
 
@@ -74,5 +106,6 @@ function renderManifest(projectPath, projectMeta) {
 module.exports = {
   getManifestTemplatePath,
   getRootManifestPath,
-  renderManifest
+  renderManifest,
+  sortRoutesByPrefixLength
 };

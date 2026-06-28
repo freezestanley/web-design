@@ -1,9 +1,16 @@
 {
-    "projectId": "<project-name>",
-    "name": "<project summary or name>",
-    "entry": "dist/index.html",
-    "owner": "<project.json.author or empty>",
-    "proxy": {
-      "routes": []
-    }
+  "schemaVersion": "1.0",
+  "projectId": "<project-name>",
+  "name": "<project summary or name>",
+  "entry": "dist/index.html",
+  "owner": "<project.json.author or empty>",
+  "proxy": {
+    "routes": [
+      {
+        "prefix": "/openapi",
+        "upstreamOrigin": "http://4335314-za-aigc-harness-studio.test.za.biz",
+        "methods": ["GET"]
+      }
+    ]
   }
+}

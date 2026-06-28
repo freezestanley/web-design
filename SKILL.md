@@ -245,12 +245,13 @@ DONE
 
 ## 行为约束
 
-- 不要直接改发布流程，必须调用脚本。
-- 不要把流程控制写进业务项目的 `package.json`。
-- 不要把预览建立在开发服务器上。
-- 不要把多个页面任务混在同一个 task 下。
-- 不要跳过 `references/design_workflow.md`，设计和开发前必须先读。
-- 不要在普通页面生成任务里删除或绕过 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js`；除非用户明确要求公开页面且不需要 SSO。
+- 禁止直接改发布流程，必须调用脚本。
+- 禁止把流程控制写进业务项目的 `package.json`。
+- 禁止把预览建立在开发服务器上。
+- 禁止把多个页面任务混在同一个 task 下。
+- 禁止跳过 `references/design_workflow.md`，设计和开发前必须先读。
+- 禁止在普通页面生成任务里删除或绕过 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js`。
+- 禁止修改技术栈或项目脚手架,必须且只能使用template下的模版作为项目技术栈和脚手架。
 
 ---
 
