@@ -21,9 +21,7 @@ export default function HomePage() {
             {projectName}
           </h1>
           <p className="max-w-2xl text-base leading-7 text-ink/72 sm:text-lg">
-            A clean React scaffold for the web-design SOP. Replace this page with
-            the confirmed design, route structure, motion system, and real SSO
-            validation for the task.
+            A clean React scaffold for the web-design SOP. Replace the page content with the confirmed design. Keep the scaffold auth, router, and HTTP wiring intact unless the task explicitly requires a public page with no SSO.
           </p>
         </div>
 

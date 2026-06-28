@@ -1,0 +1,9 @@
+{
+    "projectId": "<project-name>",
+    "name": "<project summary or name>",
+    "entry": "dist/index.html",
+    "owner": "<project.json.author or empty>",
+    "proxy": {
+      "routes": []
+    }
+  }
