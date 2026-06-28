@@ -46,3 +46,33 @@ test("skill contract defines project author as the preferred publish source", ()
   assert.match(content, /优先使用.*project\.json\.author/);
   assert.match(content, /为空.*当前对话.*session/i);
 });
+
+test("skill contract requires manifest generation before publish packaging", () => {
+  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
+  const content = fs.readFileSync(skillPath, "utf8");
+
+  assert.match(content, /\.webdesign\/manifest\.json/);
+  assert.match(content, /生成.*manifest\.json/);
+  assert.match(content, /zip 包根目录/);
+});
+
+test("skill contract requires imported src/assets references for Vite builds", () => {
+  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
+  const content = fs.readFileSync(skillPath, "utf8");
+
+  assert.match(content, /src\/assets/);
+  assert.match(content, /必须先 import/i);
+  assert.match(content, /import\s+\w+\s+from ['"]\.\.?\/.*assets\/.*['"]/);
+  assert.doesNotMatch(content, /<img\s+src="\.\/*assets\//);
+  assert.doesNotMatch(content, /相对路径引用/);
+});
+
+test("skill contract preserves scaffold auth wiring unless the user explicitly requests a public page", () => {
+  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
+  const content = fs.readFileSync(skillPath, "utf8");
+
+  assert.match(content, /默认保留.*src\/app\/router\.jsx/);
+  assert.match(content, /默认保留.*src\/shared\/auth/);
+  assert.match(content, /默认保留.*src\/shared\/http\/axios-instance\.js/);
+  assert.match(content, /明确要求.*公开页面|public page/i);
+});

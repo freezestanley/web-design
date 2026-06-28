@@ -23,6 +23,25 @@ function listZipEntries(zipPath) {
   return JSON.parse(output);
 }
 
+function readZipJsonEntry(zipPath, entryName) {
+  const output = execFileSync(
+    "python3",
+    [
+      "-c",
+      [
+        "import json, sys, zipfile",
+        "with zipfile.ZipFile(sys.argv[1], 'r') as archive:",
+        "    print(archive.read(sys.argv[2]).decode('utf-8'))"
+      ].join("\n"),
+      zipPath,
+      entryName
+    ],
+    { encoding: "utf8" }
+  );
+
+  return JSON.parse(output);
+}
+
 function setupPublishProject() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-publish-"));
   const projectPath = path.join(tempDir, "demo-project");
@@ -85,6 +104,22 @@ function setupPublishProject() {
     )
   );
   fs.writeFileSync(
+    path.join(projectPath, ".webdesign", "manifest.json"),
+    JSON.stringify(
+      {
+        projectId: "<project-name>",
+        name: "<project summary or name>",
+        entry: "dist/index.html",
+        owner: "<project.json.author or empty>",
+        proxy: {
+          routes: []
+        }
+      },
+      null,
+      2
+    )
+  );
+  fs.writeFileSync(
     path.join(taskDir, "workflow.json"),
     JSON.stringify(
       {
@@ -135,16 +170,30 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   assert.match(projectMeta.distZipPath, /\/dist\.zip$/);
   assert.equal(fs.existsSync(projectMeta.sourceZipPath), true);
   assert.equal(fs.existsSync(projectMeta.distZipPath), true);
+  const manifestPath = path.join(projectPath, "manifest.json");
+  assert.equal(fs.existsSync(manifestPath), true);
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  assert.equal(manifest.projectId, "demo-project");
+  assert.equal(manifest.name, "Demo summary");
+  assert.equal(manifest.entry, "dist/index.html");
+  assert.equal(manifest.owner, "stanley");
   const sourceZipListing = listZipEntries(projectMeta.sourceZipPath);
+  assert.deepEqual(sourceZipListing.includes("manifest.json"), true);
   assert.deepEqual(sourceZipListing.includes("src/"), true);
   assert.deepEqual(sourceZipListing.includes("src/main.js"), true);
   assert.deepEqual(sourceZipListing.some((entry) => entry.startsWith("node_modules/")), false);
   assert.deepEqual(sourceZipListing.includes("dist.zip"), false);
+  const sourceManifest = readZipJsonEntry(projectMeta.sourceZipPath, "manifest.json");
+  assert.equal(sourceManifest.owner, "stanley");
   const zipListing = listZipEntries(projectMeta.distZipPath);
+  assert.deepEqual(zipListing.includes("manifest.json"), true);
   assert.deepEqual(zipListing.includes("dist/"), true);
   assert.deepEqual(zipListing.includes("dist/index.html"), true);
   assert.deepEqual(zipListing.includes("dist-single/"), true);
   assert.deepEqual(zipListing.includes("dist-single/index.html"), true);
+  const distManifest = readZipJsonEntry(projectMeta.distZipPath, "manifest.json");
+  assert.equal(distManifest.projectId, "demo-project");
+  assert.equal(distManifest.owner, "stanley");
 
   const workflow = JSON.parse(
     fs.readFileSync(path.join(projectPath, ".webdesign", "tasks", taskId, "workflow.json"), "utf8")
@@ -215,6 +264,8 @@ test("publish backfills empty project author from the current session", () => {
 
   const updatedMeta = JSON.parse(fs.readFileSync(projectMetaPath, "utf8"));
   assert.equal(updatedMeta.author, "902");
+  const manifest = JSON.parse(fs.readFileSync(path.join(projectPath, "manifest.json"), "utf8"));
+  assert.equal(manifest.owner, "902");
 });
 
 test("publish rejects tasks that are not in publish ready gate", () => {

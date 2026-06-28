@@ -58,7 +58,7 @@ function createSourceZip(projectPath) {
 
 function createDistZip(projectPath) {
   const outputPath = path.join(projectPath, "dist.zip");
-  return createZipFromEntries(projectPath, outputPath, ["dist", "dist-single"]);
+  return createZipFromEntries(projectPath, outputPath, ["manifest.json", "dist", "dist-single"]);
 }
 
 module.exports = {

@@ -5,6 +5,7 @@ const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const { loadConfig } = require("./lib/load-config");
 const { resolveAuthorFromSession } = require("./lib/session-author");
+const { renderManifest } = require("./lib/manifest");
 const { createDistZip, createSourceZip } = require("./lib/zip");
 const { buildPublishMarker } = require("./lib/publish-marker");
 const config = loadConfig();
@@ -61,11 +62,17 @@ if (!fs.existsSync(distSinglePath)) {
   fail("Build completed without dist-single output");
 }
 
+const projectMeta = readJson(projectMetaPath);
+projectMeta.author = resolveProjectAuthor(projectMeta);
+try {
+  renderManifest(projectPath, projectMeta);
+} catch (error) {
+  fail(error.message);
+}
+
 const sourceZipPath = createSourceZip(projectPath);
 const distZipPath = createDistZip(projectPath);
 
-const projectMeta = readJson(projectMetaPath);
-projectMeta.author = resolveProjectAuthor(projectMeta);
 projectMeta.sourceZipPath = sourceZipPath;
 projectMeta.distZipPath = distZipPath;
 projectMeta.updatedAt = new Date().toISOString();

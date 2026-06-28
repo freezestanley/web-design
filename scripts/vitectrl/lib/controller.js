@@ -1,7 +1,25 @@
 const path = require("node:path");
+const fs = require("node:fs");
 const { spawn } = require("node:child_process");
 const { readRegistry, writeRegistry, DEFAULT_REGISTRY_PATH } = require("./registry");
 const { findFreePort, isProcessAlive, terminateProcess, waitForPort } = require("./process");
+
+/**
+ * 确保项目 .env.local 包含 VITE_SSO_BYPASS=true
+ * 开发预览期间自动关闭 SSO，发布构建读 .env.production，不受影响
+ */
+function ensureDevEnvLocal(projectPath) {
+  const envLocalPath = path.join(projectPath, ".env.local");
+  const bypassLine = "VITE_SSO_BYPASS=true";
+
+  let content = "";
+  if (fs.existsSync(envLocalPath)) {
+    content = fs.readFileSync(envLocalPath, "utf8");
+    if (content.includes("VITE_SSO_BYPASS=")) return;
+  }
+  const separator = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
+  fs.writeFileSync(envLocalPath, content + separator + bypassLine + "\n", "utf8");
+}
 
 function defaultSpawnArgs(port) {
   return ["run", "dev", "--", "--host", "127.0.0.1", "--port", String(port), "--strictPort"];
@@ -105,6 +123,7 @@ async function startManagedPreview({
   }
 
   const resolvedProjectPath = path.resolve(projectPath);
+  ensureDevEnvLocal(resolvedProjectPath);
   let current = await loadLiveRegistry(registryPath);
 
   const replaced = await removeServices(

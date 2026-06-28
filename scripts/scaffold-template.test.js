@@ -8,6 +8,8 @@ const scaffoldRoot = path.resolve(__dirname, "..", "templates", "scaffold");
 test("scaffold package includes router, zustand, tailwind, zip-pack and singlefile build support", () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(scaffoldRoot, "package.json"), "utf8"));
 
+  assert.equal(typeof pkg.dependencies.axios, "string");
+  assert.equal(typeof pkg.dependencies["js-cookie"], "string");
   assert.equal(typeof pkg.dependencies["react-router-dom"], "string");
   assert.equal(typeof pkg.dependencies.zustand, "string");
   assert.equal(typeof pkg.devDependencies.tailwindcss, "string");
@@ -30,6 +32,12 @@ test("scaffold contains regular app structure files", () => {
     "src/pages/home/index.jsx",
     "src/pages/unauthorized/index.jsx",
     "src/shared/auth/index.js",
+    "src/shared/auth/login.js",
+    "src/shared/auth/sso-service.js",
+    "src/shared/auth/token.js",
+    "src/shared/auth/use-auth.js",
+    "src/shared/http/axios-instance.js",
+    "src/shared/stores/user-store.js",
     "src/stores/app-store.js",
     "src/styles/main.css"
   ];
@@ -60,20 +68,34 @@ test("singlefile vite config wires react and vite-plugin-singlefile", () => {
   assert.match(singlefileConfig, /outDir:\s*"dist-single"/);
 });
 
-test("scaffold router includes unauthorized route and auth guard wiring", () => {
+test("scaffold router uses protected root route with useAuth guard wiring", () => {
   const routerConfig = fs.readFileSync(path.join(scaffoldRoot, "src/app/router.jsx"), "utf8");
 
-  assert.match(routerConfig, /path:\s*"\/unauthorized"/);
-  assert.match(routerConfig, /requireAuth:\s*true/);
-  assert.match(routerConfig, /validateSsoAccess/);
-  assert.match(routerConfig, /redirectToUnauthorized/);
+  assert.match(routerConfig, /import \{ createBrowserRouter, Outlet \} from ['"]react-router-dom['"]/);
+  assert.match(routerConfig, /import \{ useAuth \} from ['"]\.\.\/shared\/auth['"]/);
+  assert.match(routerConfig, /function ProtectedRoute\(\)/);
+  assert.match(routerConfig, /const \{ isReady \} = useAuth\(\)/);
+  assert.match(routerConfig, /return <Outlet \/>/);
+  assert.match(routerConfig, /element:\s*<ProtectedRoute \/>/);
+  assert.match(routerConfig, /children:\s*\[/);
+  assert.match(routerConfig, /path:\s*['"]\/['"]/);
 });
 
-test("unauthorized page contains required copy", () => {
-  const unauthorizedPage = fs.readFileSync(
-    path.join(scaffoldRoot, "src/pages/unauthorized/index.jsx"),
+test("scaffold auth index exposes the current SSO helpers", () => {
+  const authIndex = fs.readFileSync(
+    path.join(scaffoldRoot, "src/shared/auth/index.js"),
     "utf8"
   );
 
-  assert.match(unauthorizedPage, /抱歉您无权限查看当前页面/);
+  assert.match(authIndex, /export \{ useAuth \} from ['"]\.\/use-auth['"]/);
+  assert.match(authIndex, /export \{ navigateToLogin, navigateToLogout \} from ['"]\.\/login['"]/);
+  assert.match(authIndex, /export \{ getSessionId \} from ['"]\.\/token['"]/);
+});
+
+test("scaffold home page copy preserves auth and router wiring by default", () => {
+  const homePage = fs.readFileSync(path.join(scaffoldRoot, "src/pages/home/index.jsx"), "utf8");
+
+  assert.match(homePage, /Keep the scaffold auth, router, and HTTP wiring intact/i);
+  assert.match(homePage, /explicitly requires a public page/i);
+  assert.doesNotMatch(homePage, /replace this page with[^]*route structure[^]*real SSO/i);
 });

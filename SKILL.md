@@ -27,6 +27,8 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 禁止绕过 `publish.js` 直接发布。
 - 审计和预览必须基于 `npm run build` 之后的静态页面，不允许基于 dev server。
 - 续改项目时，只允许操作 `PROJECTS_DIR` 下、且存在 `.webdesign/project.json` 的托管项目。
+- 生成页面内容时，默认保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 这套脚手架鉴权基础设施，不得把页面改造顺手变成移除 SSO。
+- 只有用户明确要求生成公开页面或 public page，且明确说明不需要 SSO，才允许移除或重写上述鉴权基础设施。
 - 为防止 CDP 截图导致 token 爆炸，单次任务最多截图 2 次。
 - 优先在静态审计阶段使用截图，非必要不截图；禁止把截图当作常规探索手段反复调用。
 
@@ -69,13 +71,16 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 ## 图片素材规范
 
 优先使用 Unsplash/Pexels搜索图片素材
-- 图片下载到本地,项目assets文件夹下
-- 找不到图,使用项目下`assets/default.jpg`作为默认占位图 
+- 图片下载到本地,放进项目 `src/assets` 文件夹
+- 找不到图,使用项目下 `src/assets/default.jpg` 作为默认占位图
 - 禁止直接读取图片,撑爆context
+- `src/assets` 下的图片在 React/Vite 项目里必须先 import，再放进 JSX；禁止写成 `./assets/*.jpg`、`/assets/*.jpg` 这类运行时路径绕过 Vite 资源处理
 
-在 HTML/JSX 中直接引用：
+在 React/JSX 中必须这样引用：
 ```jsx
-<img src="./assets/default.jpg" alt="描述" />
+import defaultImage from "../../assets/default.jpg";
+
+<img src={defaultImage} alt="描述" />
 ```
 ---
 
@@ -123,14 +128,18 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
    | 表单、表格、后台管理类交互控件 | `antd`（仅此场景接入，不默认引入） |
    | 纯展示型落地页，无复杂交互 | 仅 `design-taste-frontend` |
 
-3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在代码中用相对路径引用
+3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
 4. 使用选定工具形成设计方案，写入 `design.md`
 5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
-6. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
+6. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
+   - 任何情况都禁止移除SSO、路由守卫和鉴权请求头
+7. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
    - 该脚本负责统一启动 dev preview，并自动治理由 `web-design` 管理过的 Vite 服务
    - 同一 `project-path` 若已有旧的 managed dev preview，启动新服务前必须自动关闭旧服务
    - 全局最多只保留最近 5 个 managed dev preview；超出的最老服务必须自动关闭释放端口
-7. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
+   - 启动时自动向项目写入 `.env.local`（含 `VITE_SSO_BYPASS=true`），SSO 认证在开发预览中自动关闭
+   - `.env.local` 由 `.gitignore` 保护，不进仓库；Step 4 发布构建读 `.env.production`，bypass 不生效
+8. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
    - 截图预算固定为单次任务最多 2 次
    - 优先分配为 1 次桌面全页截图 + 1 次 375px 移动端截图
    - 若首轮截图已足够定位问题，剩余额度保留，不得为了“多看几眼”继续截图
@@ -150,11 +159,11 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
    ### 失败项（如有）
    - <描述具体问题>
    ```
-8. 主动在浏览器打开启动的服务,并把访问地址发给用户
+9. 主动在浏览器打开启动的服务,并把访问地址发给用户
    - 若自动打开失败，或用户侧出现“页面拒绝链接”等异常，必须补发一条站在用户视角的手动预览提示
    - 提示文案严格使用纯文本句式，例如：`请用浏览器打开 127.0.0.1:4173 预览页面。若显示失败如链接被拒绝请告诉我，将重新打开页面。`
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接、富文本链接或“点这里打开”一类表述
-9. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
+10. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
 
 ### Step 4. 发布
 
@@ -167,8 +176,9 @@ node scripts/publish.js <project-path> <task-id>
 发布时必须：
 
 - 再次执行 `npm run build`
+- 从 `.webdesign/manifest.json` 生成项目根目录 `manifest.json`
 - 打出源码 `project.zip`
-- 打出包含 `dist` 和 `dist-single` 的 `dist.zip`
+- 打出 zip 包根目录包含 `manifest.json`、并同时包含 `dist` 和 `dist-single` 的 `dist.zip`
 - 回写 `.webdesign/project.json`
 - 输出发布标记
 
@@ -240,6 +250,7 @@ DONE
 - 不要把预览建立在开发服务器上。
 - 不要把多个页面任务混在同一个 task 下。
 - 不要跳过 `references/design_workflow.md`，设计和开发前必须先读。
+- 不要在普通页面生成任务里删除或绕过 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js`；除非用户明确要求公开页面且不需要 SSO。
 
 ---
 
@@ -257,9 +268,11 @@ DONE
 | 6 | 读取 base64 图片内容 | 单张图片可消耗数万 token，直接卡死上下文 |
 | 7 | 使用 CDN URL 直接引用图片 | 外部链接随时失效，打包产物不包含资源 |
 | 8 | 把多个页面任务放同一个 task | 审计、回滚、溯源全部混乱，无法单独回退某个页面 |
-| 9 | 在 HANDOFF 前执行 /compact 或 /clear | Gate 状态和任务进度丢失，无法续改 |
-| 10 | 单次任务截图超过 2 次 | CDP 截图 token 成本过高，容易把上下文和审计成本打爆 |
-| 11 | 修改技术栈（擅自换框架/打包工具） | 破坏项目一致性，脚本和 CI 失效 |
+| 9 | 在普通页面生成任务里删除 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` | 页面会绕过脚手架 SSO、路由守卫和鉴权请求头，生成结果与模板约束失配 |
+| 10 | 把 `src/assets` 写成 `./assets/*.jpg` 或 `/assets/*.jpg` 直接放进 JSX | Vite 不会按模块产出资源，构建后图片 404 |
+| 11 | 在 HANDOFF 前执行 /compact 或 /clear | Gate 状态和任务进度丢失，无法续改 |
+| 12 | 单次任务截图超过 2 次 | CDP 截图 token 成本过高，容易把上下文和审计成本打爆 |
+| 13 | 修改技术栈（擅自换框架/打包工具） | 破坏项目一致性，脚本和 CI 失效 |
 
 ---
 
@@ -269,7 +282,7 @@ DONE
 |---------|---------|------------|
 | `npm run build` 报错 | 读错误末尾 5 行定位 → 修复对应文件 → 重新 build | 回退到 `G6_DEVELOPMENT`，执行 `gate.js reopen-dev` 并记录原因 |
 | Gate advance 被拒（缺字段） | 执行 `gate.js status` 查看缺失字段 → 补全后重试 advance | 告知用户缺少哪个字段，不得静默跳过 |
-| 图片资源找不到 | 用 `assets/default.jpg` 占位，在 audit.md 中记录缺图 | 询问用户提供图片，不得使用 CDN URL 直接引用 |
+| 图片资源找不到 | 从 `src/assets` `import defaultImage from ".../assets/default.jpg"` 作为占位，在 audit.md 中记录缺图 | 询问用户提供图片，不得使用 CDN URL 直接引用 |
 | `publish.js` 执行失败 | 检查 `dist-single/index.html` 是否存在 → 重新 `npm run build` → 重试 | 告知用户失败原因，不得用任何其他方式发布 |
 | Gate 被 block（`gate.js block`） | 执行 `gate.js unblock` 解锁后重新推进 | 若无法 unblock，告知用户具体 block 原因，等待用户决策 |
 | `resolve-project.js` 找不到项目 | 检查 `PROJECTS_DIR` 配置和目录是否存在 | 提示用户：续改只允许操作有 `.webdesign/project.json` 的托管项目 |

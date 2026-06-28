@@ -31,6 +31,12 @@
   - 用于故事型页面、汇报型页面、品牌叙事页、长滚动展示页
   - 重点看章节推进、叙事节奏、视觉切页感、信息分幕
 
+- `references/design/background.md`
+  - 页面/元素的背景元素动效设计
+  
+- `references/design/story.md`
+  - 舞台故事设计方案
+
 优先级规则：
 
 - 营销、品牌、产品介绍类页面：先读 `landing.md`
@@ -319,3 +325,22 @@
 - 已确定 Tailwind v4 写法要遵循 `tailwind-best-practices`
 
 如果这些没定清楚，不要直接进入实现。
+
+## 7. 设计要点
+
+- hero 区域是最直接吸引用户的，参考 `references/design/background.md` 设计，提高页面质量
+
+## 8. 本地素材索引
+
+本地可用图片素材统一记录在 `references/assets.md`，目录位于 `references/assets/`。
+
+进入代码开发前，如需使用真实图片，先查阅该索引：
+
+- 根据页面类型和区块语义挑选合适素材
+- 禁止直接用外链占位图（如 Lorem Picsum）替代有明确语义的区块图片
+- 人物图（`gril.jpg` / `gril2.jpg` / `gril3.jpg` / `man.jpg`）用于 hero 或证言区块
+- 场景图（`city*.jpg` / `mountain.jpg` / `build.jpg`）用于全宽背景或氛围段落
+- 生活方式图（`sofa.jpg`）用于室内/家居/产品场景
+- 氛围图（`star.jpg`）用于品牌故事、宏叙事、低信息密度段落
+
+详见 → [`references/assets.md`](./assets.md)
