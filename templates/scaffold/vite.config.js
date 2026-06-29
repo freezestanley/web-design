@@ -67,5 +67,26 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: buildDevProxy(env),
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              // react 生态必须打在一起，防止 antd 执行时 React 未初始化
+              if (
+                id.includes('/react/') ||
+                id.includes('/react-dom/') ||
+                id.includes('/react-router') ||
+                id.includes('@remix-run/') ||
+                id.includes('/scheduler/') ||
+                id.includes('/use-sync-external-store/')
+              ) return 'react'
+              if (id.includes('/antd/') || id.includes('@ant-design') || id.includes('rc-')) return 'antd'
+              return 'vendor'
+            }
+          },
+        },
+      },
+    },
   };
 });

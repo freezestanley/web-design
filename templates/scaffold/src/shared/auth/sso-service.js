@@ -123,26 +123,14 @@ export async function checkAppPermission(account) {
     return { allowed: true, reason: null }
   }
 
-  // resolveApiBase 在请求时读取，保证 __BASENAME__ 已注入
-  const { resolveApiBase } = await import('../http/axios-instance')
-  const base = resolveApiBase() || ''
-  const url = `${base}/openapi/app-projects/${encodeURIComponent(projectNo)}/permission?account=${encodeURIComponent(account)}`
+  // 走 httpClient，baseURL 和 X-Usercenter-Session 由拦截器统一注入
+  const { default: httpClient } = await import('../http/axios-instance')
+  const res = await httpClient.get(
+    `/openapi/app-projects/${encodeURIComponent(projectNo)}/permission`,
+    { params: { account } }
+  )
 
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-Service-Name': SERVICE_NAME,
-      'X-Usercenter-Session': getSessionId() || '',
-    },
-  })
-
-  if (!res.ok) {
-    // 权限服务异常，按无权限处理，避免意外放行
-    throw new Error(`permission check failed: ${res.status}`)
-  }
-
-  const json = await res.json()
+  const json = res.data || {}
   if (!json.success) {
     throw new Error(json.message || 'permission check error')
   }
