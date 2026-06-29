@@ -128,9 +128,9 @@ import defaultImage from "../../assets/default.jpg";
 **写入 product.md 后，立即执行 proxy routes 提取**：
 
 ```bash
-node scripts/lib/manifest-proxy.js <project-path> <upstream-origin> --api-doc <接口文档路径>
+node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] --api-doc <接口文档路径>
 # 或通过 stdin 传入接口文档文本：
-echo "<接口文档文本>" | node scripts/lib/manifest-proxy.js <project-path> <upstream-origin>
+echo "<接口文档文本>" | node scripts/lib/manifest-proxy.js <project-path> [upstream-origin]
 ```
 
 提取规则（脚本自动执行，此处说明供 AI 理解和校验）：
@@ -138,6 +138,8 @@ echo "<接口文档文本>" | node scripts/lib/manifest-proxy.js <project-path> 
 - 从每条接口路径中剥离 `/api` 前缀后取第一段作为 prefix
   - `/api/app-center/projects` → prefix = `/app-center`
   - `/app-center/projects`（无 `/api` 前缀）→ prefix = `/app-center`
+- 若文档块内显式写了 `upstreamOrigin：http://api.example.com`，则该 block 内的接口路径绑定到该 origin
+- 若文档中没有 inline `upstreamOrigin`，则回退使用 CLI 传入的 `[upstream-origin]`
 - 同 upstreamOrigin 下相同 prefix 自动去重
 - 结果按前缀长度倒序写入 `.webdesign/manifest.json` 的 `proxy.routes`
 
@@ -272,7 +274,7 @@ DONE
 - `node scripts/gate.js reopen-dev <project-path> <task-id> --reason "..."`
 - `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path]`
 - `node scripts/publish.js <project-path> <task-id>`
-- `node scripts/lib/manifest-proxy.js <project-path> <upstream-origin> [--api-doc <path>]`
+- `node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] [--api-doc <path>]`
   - 从接口文档提取 proxy routes 并写入 `.webdesign/manifest.json`
   - 不传 `--api-doc` 时从 stdin 读取文档文本
   - **必须在 G2（product.md 写入后）阶段执行，G2→G3 推进前完成**

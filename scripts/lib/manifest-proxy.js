@@ -11,19 +11,21 @@
  *   1. 从每行接口路径中剥离 /api 前缀后，取第一段路径作为 prefix
  *      例：/api/app-center/projects → prefix = /app-center
  *          /app-center/projects    → prefix = /app-center（无 /api 前缀也兼容）
- *   2. 同一 upstreamOrigin 下的同 prefix 去重
- *   3. 按前缀长度倒序排列（精确路由优先），与 manifest.js 的 sortRoutesByPrefixLength 保持一致
- *   4. upstreamOrigin 必须由调用方显式传入，格式：https?://[^/]+（不含路径，不含尾斜杠）
+ *   2. 若文档块内含 `upstreamOrigin: https://host`，则按块内 origin 生成 route
+ *   3. 若文档未内联 upstreamOrigin，则回退到 CLI 传入的默认 upstreamOrigin
+ *   4. 同一 upstreamOrigin 下的同 prefix 去重
+ *   5. 按前缀长度倒序排列（精确路由优先），与 manifest.js 的 sortRoutesByPrefixLength 保持一致
  *
  * CLI 用法：
- *   node scripts/lib/manifest-proxy.js <project-path> <upstream-origin> [--api-doc <path>]
+ *   node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] [--api-doc <path>]
  *
  *   --api-doc  接口文档文件路径（不传则从 stdin 读取）
  *
  * 编程接口：
- *   extractPrefixesFromText(text)            → string[]  提取去重后的 prefix 列表
- *   buildProxyRoutes(prefixes, upstream)     → Route[]   构造 route 对象数组
- *   writeProxyRoutes(projectPath, routes)    → void      写入 manifest 模板
+ *   extractPrefixesFromText(text)                 → string[]  提取去重后的 prefix 列表
+ *   extractRoutesFromText(text, defaultUpstream)  → Route[]   从文档直接构造 route
+ *   buildProxyRoutes(prefixes, upstream)          → Route[]   构造 route 对象数组
+ *   writeProxyRoutes(projectPath, routes)         → void      写入 manifest 模板
  */
 
 const fs = require("node:fs");
@@ -37,6 +39,7 @@ const config = loadConfig();
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
 const UPSTREAM_RE = /^https?:\/\/[^/]+$/;
+const INLINE_UPSTREAM_RE = /upstreamOrigin[：:]\s*(https?:\/\/[^/\s]+)/i;
 
 // 匹配一行中出现的 URL 路径段，支持：
 //   GET /api/app-center/projects
@@ -101,6 +104,75 @@ function extractPrefixesFromText(text) {
   return [...seen].sort();
 }
 
+function sortRoutes(routes) {
+  return [...routes].sort((a, b) => b.prefix.length - a.prefix.length);
+}
+
+function extractUpstreamOriginFromBlock(block) {
+  const match = block.match(INLINE_UPSTREAM_RE);
+  if (!match) return null;
+  if (!UPSTREAM_RE.test(match[1])) {
+    throw new Error(
+      `upstreamOrigin 格式错误，期望如 https://example.com，实际得到：${match[1]}`
+    );
+  }
+  return match[1];
+}
+
+function addRoute(routeMap, prefix, upstreamOrigin) {
+  const existing = routeMap.get(prefix);
+  if (existing && existing !== upstreamOrigin) {
+    throw new Error(
+      `prefix "${prefix}" 关联了多个 upstreamOrigin：${existing} / ${upstreamOrigin}`
+    );
+  }
+  routeMap.set(prefix, upstreamOrigin);
+}
+
+/**
+ * 从文档文本中直接提取 proxy route。
+ *
+ * 优先读取文档块内的 `upstreamOrigin:`：
+ *   - 适用于 product.md 中多模块、多上游的场景
+ *   - 每个空行分隔的 block 独立提取 prefix + upstreamOrigin
+ *
+ * 若文档内不存在任何 inline upstreamOrigin，则退回到默认 upstreamOrigin。
+ *
+ * @param {string} text
+ * @param {string|undefined} defaultUpstreamOrigin
+ * @returns {Array<{prefix: string, upstreamOrigin: string}>}
+ */
+function extractRoutesFromText(text, defaultUpstreamOrigin) {
+  const blocks = text.split(/\n\s*\n/);
+  const routeMap = new Map();
+  let hasInlineUpstream = false;
+
+  for (const block of blocks) {
+    const upstreamOrigin = extractUpstreamOriginFromBlock(block);
+    if (!upstreamOrigin) continue;
+
+    hasInlineUpstream = true;
+    for (const prefix of extractPrefixesFromText(block)) {
+      addRoute(routeMap, prefix, upstreamOrigin);
+    }
+  }
+
+  if (hasInlineUpstream) {
+    return sortRoutes(
+      [...routeMap.entries()].map(([prefix, upstreamOrigin]) => ({
+        prefix,
+        upstreamOrigin,
+      }))
+    );
+  }
+
+  if (!defaultUpstreamOrigin) {
+    return [];
+  }
+
+  return buildProxyRoutes(extractPrefixesFromText(text), defaultUpstreamOrigin);
+}
+
 /**
  * 构造 proxy route 对象数组，按前缀长度倒序排列。
  *
@@ -116,8 +188,7 @@ function buildProxyRoutes(prefixes, upstreamOrigin) {
   }
 
   const routes = prefixes.map((prefix) => ({ prefix, upstreamOrigin }));
-  // 长前缀优先（与 manifest.js sortRoutesByPrefixLength 一致）
-  return routes.sort((a, b) => b.prefix.length - a.prefix.length);
+  return sortRoutes(routes);
 }
 
 /**
@@ -188,9 +259,9 @@ async function readStdin() {
 async function main() {
   const args = parseCliArgs(process.argv.slice(2));
 
-  if (!args.projectPath || !args.upstreamOrigin) {
+  if (!args.projectPath) {
     fail(
-      "用法：node scripts/lib/manifest-proxy.js <project-path> <upstream-origin> [--api-doc <path>]\n" +
+      "用法：node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] [--api-doc <path>]\n" +
         "示例：node scripts/lib/manifest-proxy.js ./projects/admin http://api.example.com --api-doc ./api-doc.txt"
     );
   }
@@ -206,13 +277,13 @@ async function main() {
     text = await readStdin();
   }
 
-  const prefixes = extractPrefixesFromText(text);
+  const routes = extractRoutesFromText(text, args.upstreamOrigin);
 
-  if (prefixes.length === 0) {
-    fail("未从接口文档中提取到任何有效路径前缀，请检查文档格式。");
+  if (routes.length === 0) {
+    fail(
+      "未从接口文档中提取到任何有效 proxy route。请检查文档中的接口路径，或补充 inline upstreamOrigin / CLI upstreamOrigin。"
+    );
   }
-
-  const routes = buildProxyRoutes(prefixes, args.upstreamOrigin);
 
   writeProxyRoutes(path.resolve(args.projectPath), routes);
 
@@ -230,6 +301,7 @@ if (require.main === module) {
 module.exports = {
   extractPrefix,
   extractPrefixesFromText,
+  extractRoutesFromText,
   buildProxyRoutes,
   writeProxyRoutes,
 };
