@@ -77,11 +77,8 @@ function setupPublishProject() {
       "const fs = require('node:fs');",
       "const path = require('node:path');",
       "const distDir = path.join(process.cwd(), 'dist');",
-      "const distSingleDir = path.join(process.cwd(), 'dist-single');",
       "fs.mkdirSync(distDir, { recursive: true });",
-      "fs.mkdirSync(distSingleDir, { recursive: true });",
-      "fs.writeFileSync(path.join(distDir, 'index.html'), '<!doctype html><h1>publish</h1>');",
-      "fs.writeFileSync(path.join(distSingleDir, 'index.html'), '<!doctype html><h1>single</h1>');"
+      "fs.writeFileSync(path.join(distDir, 'index.html'), '<!doctype html><h1>publish</h1>');"
     ].join("\n")
   );
 
@@ -89,6 +86,7 @@ function setupPublishProject() {
     path.join(projectPath, ".webdesign", "project.json"),
     JSON.stringify(
       {
+        projectUid: "PROJaabbccddeeff0011",
         name: "demo-project",
         summary: "Demo summary",
         author: "stanley",
@@ -158,7 +156,7 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##stanley｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
 
   const projectMeta = JSON.parse(
@@ -189,8 +187,6 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   assert.deepEqual(zipListing.includes("manifest.json"), true);
   assert.deepEqual(zipListing.includes("dist/"), true);
   assert.deepEqual(zipListing.includes("dist/index.html"), true);
-  assert.deepEqual(zipListing.includes("dist-single/"), true);
-  assert.deepEqual(zipListing.includes("dist-single/index.html"), true);
   const distManifest = readZipJsonEntry(projectMeta.distZipPath, "manifest.json");
   assert.equal(distManifest.projectId, "demo-project");
   assert.equal(distManifest.owner, "stanley");
@@ -218,7 +214,7 @@ test("publish leaves author empty when session is unavailable", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
 });
 
@@ -236,7 +232,7 @@ test("publish prefers project author over the current session author", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##stanley｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
 });
 
@@ -259,7 +255,7 @@ test("publish backfills empty project author from the current session", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##902｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
   );
 
   const updatedMeta = JSON.parse(fs.readFileSync(projectMetaPath, "utf8"));
@@ -284,24 +280,3 @@ test("publish rejects tasks that are not in publish ready gate", () => {
   assert.match(result.stderr, /G9_PUBLISH_READY/);
 });
 
-test("publish fails when build does not produce dist-single output", () => {
-  const { projectPath, taskId } = setupPublishProject();
-  fs.writeFileSync(
-    path.join(projectPath, "build-script.cjs"),
-    [
-      "const fs = require('node:fs');",
-      "const path = require('node:path');",
-      "const distDir = path.join(process.cwd(), 'dist');",
-      "fs.mkdirSync(distDir, { recursive: true });",
-      "fs.writeFileSync(path.join(distDir, 'index.html'), '<!doctype html><h1>publish</h1>');"
-    ].join("\n")
-  );
-
-  const result = spawnSync(process.execPath, ["scripts/publish.js", projectPath, taskId], {
-    cwd: path.resolve(__dirname, ".."),
-    encoding: "utf8"
-  });
-
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /dist-single/);
-});

@@ -69,11 +69,16 @@ function isAbsoluteUrl(url) {
 }
 
 /**
- * 统一 axios 实例
+ * 统一 axios 实例 — 项目唯一 HTTP 请求工具
+ *
+ * 约束（禁止绕过）：
+ *   - 所有接口请求必须使用 httpClient，禁止直接使用 fetch / XMLHttpRequest / axios.create
+ *   - SSO 跨域接口（/validate2、/userinfo）传绝对 URL 给 httpClient，不得另建实例
+ *   - 需要原生 EventSource / WebSocket 的场景用 http-utils.js 构建 URL，连接本身不经过此实例
  *
  * 请求拦截：自动注入 SSO 认证 header，动态计算 baseURL
  *   X-Service-Name       服务名
- *   X-Usercenter-Session 当前 sessionId
+ *   X-Usercenter-Session 当前 sessionId（/validate2 路径豁免）
  *   X-Requested-With     XMLHttpRequest（标识 ajax）
  *
  * 响应拦截：

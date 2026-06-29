@@ -84,7 +84,7 @@ workflow.updatedAt = new Date().toISOString();
 fs.writeFileSync(workflowPath, JSON.stringify(workflow, null, 2));
 
 process.stdout.write(`${buildPublishMarker({
-  author: projectMeta.author,
+  projectUid: projectMeta.projectUid || "",
   sourceZipPath,
   distZipPath,
   projectName: projectMeta.name,

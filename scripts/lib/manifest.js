@@ -15,6 +15,7 @@ function getRootManifestPath(projectPath) {
 function replaceManifestPlaceholders(value, projectMeta) {
   if (typeof value === "string") {
     return value
+      .replaceAll("<project-uid>", projectMeta.projectUid || "")
       .replaceAll("<project-name>", projectMeta.name || "")
       .replaceAll("<project summary or name>", projectMeta.summary || projectMeta.name || "")
       .replaceAll("<project.json.author or empty>", projectMeta.author || "");

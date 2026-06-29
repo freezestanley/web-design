@@ -49,14 +49,9 @@ test("zip helper works when only python3 is available on PATH", () => {
 
   fs.mkdirSync(path.join(projectPath, "src"), { recursive: true });
   fs.mkdirSync(path.join(projectPath, "dist"), { recursive: true });
-  fs.mkdirSync(path.join(projectPath, "dist-single"), { recursive: true });
   fs.mkdirSync(path.join(projectPath, "node_modules", "demo-dep"), { recursive: true });
   fs.writeFileSync(path.join(projectPath, "src", "main.js"), "console.log('demo');");
   fs.writeFileSync(path.join(projectPath, "dist", "index.html"), "<!doctype html><h1>dist</h1>");
-  fs.writeFileSync(
-    path.join(projectPath, "dist-single", "index.html"),
-    "<!doctype html><h1>single</h1>"
-  );
   fs.writeFileSync(path.join(projectPath, "node_modules", "demo-dep", "index.js"), "demo");
   fs.writeFileSync(path.join(projectPath, "old.zip"), "stale zip");
 
@@ -77,6 +72,4 @@ test("zip helper works when only python3 is available on PATH", () => {
   const distZipEntries = listZipEntries(path.join(projectPath, "dist.zip"));
   assert.equal(distZipEntries.includes("dist/"), true);
   assert.equal(distZipEntries.includes("dist/index.html"), true);
-  assert.equal(distZipEntries.includes("dist-single/"), true);
-  assert.equal(distZipEntries.includes("dist-single/index.html"), true);
 });

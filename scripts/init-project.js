@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { loadConfig } = require("./lib/load-config");
 const { getSessionAuthor } = require("./lib/session-author");
-const { buildTaskId, writeProjectMeta } = require("./lib/project-state");
+const { buildTaskId, generateProjectUid, writeProjectMeta } = require("./lib/project-state");
 const config = loadConfig();
 
 function parseArgs(argv) {
@@ -112,6 +112,8 @@ if (!projectName || !pageSlug || !intent) {
 
 const now = process.env.WEB_DESIGN_NOW ? new Date(process.env.WEB_DESIGN_NOW) : new Date();
 const taskId = buildTaskId(now, pageSlug);
+// projectUid 在项目创建时生成一次，写入后不可更改
+const projectUid = process.env.WEB_DESIGN_PROJECT_UID || generateProjectUid();
 const projectsDir = process.env.WEB_DESIGN_PROJECTS_DIR
   ? path.resolve(process.env.WEB_DESIGN_PROJECTS_DIR)
   : config.PROJECTS_DIR;
@@ -128,6 +130,7 @@ copyDir(templatePath, projectPath);
 
 const nowIso = now.toISOString();
 writeProjectMeta(projectPath, {
+  projectUid,
   name: projectName,
   summary,
   author: getSessionAuthor(),

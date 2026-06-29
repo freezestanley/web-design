@@ -1,5 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
+const crypto = require("node:crypto");
 const { loadConfig } = require("./load-config");
 const config = loadConfig();
 
@@ -17,6 +18,15 @@ function writeProjectMeta(projectPath, meta) {
   fs.writeFileSync(getProjectMetaPath(projectPath), JSON.stringify(meta, null, 2));
 }
 
+/**
+ * 生成项目唯一 ID，格式：PROJ + 16位十六进制（8字节随机数）
+ * 示例：PROJa3f2c1d4e5b6a7f8
+ * 仅在项目创建时调用一次，之后不可更改。
+ */
+function generateProjectUid() {
+  return `PROJ${crypto.randomBytes(8).toString("hex")}`;
+}
+
 function buildTaskId(date, slug) {
   const year = date.getUTCFullYear();
   const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
@@ -29,6 +39,7 @@ function buildTaskId(date, slug) {
 
 module.exports = {
   buildTaskId,
+  generateProjectUid,
   getProjectMetaPath,
   readProjectMeta,
   writeProjectMeta

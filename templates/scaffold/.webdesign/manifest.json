@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0",
-  "projectId": "<project-name>",
+  "projectId": "<project-uid>",
   "name": "<project summary or name>",
   "entry": "dist/index.html",
   "owner": "<project.json.author or empty>",

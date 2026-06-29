@@ -1,4 +1,5 @@
 import { getSessionId } from './token'
+import httpClient from '../http/axios-instance'
 
 // ---------------------------------------------------------------------------
 // SSO host 解析
@@ -49,43 +50,33 @@ export function getSsoHost() {
 
 /**
  * 用 ticket 换 sessionId
- * POST ${ssoHost}/validate2
+ * GET ${ssoHost}/validate2?service=za-open-bot&ticket=xxx
+ *
+ * 注：/validate2 路径命中拦截器豁免规则，不注入 X-Usercenter-Session
  */
 export async function getSsoSessionIdByTicket(ticket) {
   const host = getSsoHost()
-  const url = new URL(`${host}/validate2`)
-  url.searchParams.set('service', SERVICE_NAME)
-  url.searchParams.set('ticket', ticket)
-
-  const res = await fetch(url.toString(), {
-    method: 'GET',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+  const res = await httpClient.get(`${host}/validate2`, {
+    params: { service: SERVICE_NAME, ticket },
   })
-  const json = await res.json()
+  const json = res.data || {}
   if (json.success === true) return json
   throw new Error(json.message || 'validate2 failed')
 }
 
 /**
  * 用 sessionId 获取用户信息
- * GET ${ssoHost}/userinfo
+ * GET ${ssoHost}/userinfo?service=za-open-bot&encryptedSession=xxx
+ *
+ * X-Usercenter-Session 由拦截器统一注入
  */
 export async function getSsoUserInfo() {
   const host = getSsoHost()
   const sessionId = getSessionId()
-  const url = new URL(`${host}/userinfo`)
-  url.searchParams.set('service', SERVICE_NAME)
-  url.searchParams.set('encryptedSession', sessionId)
-
-  const res = await fetch(url.toString(), {
-    method: 'GET',
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest',
-      'X-Service-Name': SERVICE_NAME,
-      'X-Usercenter-Session': sessionId,
-    },
+  const res = await httpClient.get(`${host}/userinfo`, {
+    params: { service: SERVICE_NAME, encryptedSession: sessionId },
   })
-  const json = await res.json()
+  const json = res.data || {}
   if (json.success === true) return json
   throw new Error(json.message || 'userinfo failed')
 }
