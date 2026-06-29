@@ -14,7 +14,9 @@ function initProject(tempDir) {
       env: {
         ...process.env,
         WEB_DESIGN_PROJECTS_DIR: tempDir,
-        WEB_DESIGN_NOW: "2026-06-25T10:20:30.000Z"
+        WEB_DESIGN_NOW: "2026-06-25T10:20:30.000Z",
+        WEB_DESIGN_PROJECT_UID: "PROJaabbccddeeff0011",
+        SESSION_KEY: "agent:agent-1:web:902:dm:session-1"
       },
       encoding: "utf8"
     }
@@ -44,11 +46,60 @@ function readWorkflow(projectPath, taskId) {
   );
 }
 
+function productSyncCommand(args, env = {}) {
+  return spawnSync(process.execPath, ["scripts/product-sync.js", ...args], {
+    cwd: path.resolve(__dirname, ".."),
+    env: { ...process.env, ...env },
+    encoding: "utf8"
+  });
+}
+
+function writeProduct(projectPath, taskId, content) {
+  fs.writeFileSync(
+    path.join(projectPath, ".webdesign", "tasks", taskId, "product.md"),
+    content
+  );
+}
+
+function syncNoApiProduct(projectPath, taskId) {
+  writeProduct(
+    projectPath,
+    taskId,
+    `# Product - demo-project
+
+## 页面主题
+homepage
+
+## 页面素材
+
+## 文案
+
+## 接口状态
+none
+
+## API接口
+本页面为纯静态展示，无接口依赖。
+
+## 动效
+
+## 受众
+
+## 场景
+
+## 验收要求
+`
+  );
+
+  const result = productSyncCommand([projectPath, taskId]);
+  assert.equal(result.status, 0, result.stderr);
+}
+
 test("gate advances through legal order and requires confirms on confirmation gates", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gate-"));
   const { projectPath, taskId } = initProject(tempDir);
 
   assert.equal(gateCommand(["advance", projectPath, taskId]).status, 0);
+  syncNoApiProduct(projectPath, taskId);
   const missingProductConfirm = gateCommand(["advance", projectPath, taskId]);
   assert.equal(missingProductConfirm.status, 1);
   assert.match(missingProductConfirm.stderr, /confirm/i);
@@ -71,11 +122,70 @@ test("gate advances through legal order and requires confirms on confirmation ga
   assert.equal(readWorkflow(projectPath, taskId).currentGate, "G5_DESIGN_CONFIRMED");
 });
 
+test("gate blocks G2 to G3 until product-sync records API state", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gate-"));
+  const { projectPath, taskId } = initProject(tempDir);
+
+  assert.equal(gateCommand(["advance", projectPath, taskId]).status, 0);
+
+  const blockedResult = gateCommand([
+    "advance",
+    projectPath,
+    taskId,
+    "--confirm",
+    "需求确认通过"
+  ]);
+  assert.equal(blockedResult.status, 1);
+  assert.match(blockedResult.stderr, /product-sync|apiState|同步/i);
+
+  writeProduct(
+    projectPath,
+    taskId,
+    `# Product - demo-project
+
+## 页面主题
+homepage
+
+## 页面素材
+
+## 文案
+
+## 接口状态
+none
+
+## API接口
+本页面为纯静态展示，无接口依赖。
+
+## 动效
+
+## 受众
+
+## 场景
+
+## 验收要求
+`
+  );
+
+  const syncResult = productSyncCommand([projectPath, taskId]);
+  assert.equal(syncResult.status, 0, syncResult.stderr);
+
+  const passResult = gateCommand([
+    "advance",
+    projectPath,
+    taskId,
+    "--confirm",
+    "需求确认通过"
+  ]);
+  assert.equal(passResult.status, 0, passResult.stderr);
+  assert.equal(readWorkflow(projectPath, taskId).currentGate, "G3_PRODUCT_CONFIRMED");
+});
+
 test("gate blocks G6 to G7 when audit.md is not PASS", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gate-"));
   const { projectPath, taskId } = initProject(tempDir);
 
   gateCommand(["advance", projectPath, taskId]);
+  syncNoApiProduct(projectPath, taskId);
   gateCommand(["advance", projectPath, taskId, "--confirm", "需求确认通过"]);
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId, "--confirm", "设计确认通过"]);
@@ -92,6 +202,7 @@ test("G9_PUBLISH_READY cannot advance directly to DONE", () => {
   const taskDir = path.join(projectPath, ".webdesign", "tasks", taskId);
 
   gateCommand(["advance", projectPath, taskId]);
+  syncNoApiProduct(projectPath, taskId);
   gateCommand(["advance", projectPath, taskId, "--confirm", "需求确认通过"]);
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId, "--confirm", "设计确认通过"]);
@@ -112,6 +223,7 @@ test("reopen-dev returns previewed task to G6_DEVELOPMENT", () => {
   const taskDir = path.join(projectPath, ".webdesign", "tasks", taskId);
 
   gateCommand(["advance", projectPath, taskId]);
+  syncNoApiProduct(projectPath, taskId);
   gateCommand(["advance", projectPath, taskId, "--confirm", "需求确认通过"]);
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId, "--confirm", "设计确认通过"]);

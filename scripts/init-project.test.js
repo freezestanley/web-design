@@ -47,6 +47,7 @@ test("init-project copies scaffold and creates .webdesign task files", () => {
   assert.equal(workflow.pageSlug, "homepage");
   assert.equal(workflow.intent, "create");
   assert.equal(workflow.currentGate, "G1_TASK_CREATED");
+  assert.equal(workflow.apiState, null);
 
   assert.equal(fs.existsSync(path.join(taskDir, "product.md")), true);
   assert.equal(fs.existsSync(path.join(taskDir, "design.md")), true);

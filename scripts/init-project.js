@@ -150,6 +150,7 @@ writeTextFile(
       pageSlug,
       intent,
       currentGate: "G1_TASK_CREATED",
+      apiState: null,
       blocked: false,
       blockReason: "",
       userConfirmations: [],

@@ -108,8 +108,8 @@ function sortRoutes(routes) {
   return [...routes].sort((a, b) => b.prefix.length - a.prefix.length);
 }
 
-function extractUpstreamOriginFromBlock(block) {
-  const match = block.match(INLINE_UPSTREAM_RE);
+function extractUpstreamOrigin(text) {
+  const match = text.match(INLINE_UPSTREAM_RE);
   if (!match) return null;
   if (!UPSTREAM_RE.test(match[1])) {
     throw new Error(
@@ -129,6 +129,12 @@ function addRoute(routeMap, prefix, upstreamOrigin) {
   routeMap.set(prefix, upstreamOrigin);
 }
 
+function addRoutesFromText(routeMap, text, upstreamOrigin) {
+  for (const prefix of extractPrefixesFromText(text)) {
+    addRoute(routeMap, prefix, upstreamOrigin);
+  }
+}
+
 /**
  * 从文档文本中直接提取 proxy route。
  *
@@ -143,34 +149,46 @@ function addRoute(routeMap, prefix, upstreamOrigin) {
  * @returns {Array<{prefix: string, upstreamOrigin: string}>}
  */
 function extractRoutesFromText(text, defaultUpstreamOrigin) {
-  const blocks = text.split(/\n\s*\n/);
   const routeMap = new Map();
-  let hasInlineUpstream = false;
+  const blocks = text.split(/\n\s*\n/);
 
   for (const block of blocks) {
-    const upstreamOrigin = extractUpstreamOriginFromBlock(block);
-    if (!upstreamOrigin) continue;
+    const lines = block.split("\n");
+    const upstreamMarkers = lines
+      .map((line, index) => {
+        const upstreamOrigin = extractUpstreamOrigin(line);
+        return upstreamOrigin ? { index, upstreamOrigin } : null;
+      })
+      .filter(Boolean);
 
-    hasInlineUpstream = true;
-    for (const prefix of extractPrefixesFromText(block)) {
-      addRoute(routeMap, prefix, upstreamOrigin);
+    if (upstreamMarkers.length === 0) {
+      if (defaultUpstreamOrigin) {
+        addRoutesFromText(routeMap, block, defaultUpstreamOrigin);
+      }
+      continue;
+    }
+
+    if (upstreamMarkers.length === 1) {
+      addRoutesFromText(routeMap, block, upstreamMarkers[0].upstreamOrigin);
+      continue;
+    }
+
+    for (let index = 0; index < upstreamMarkers.length; index += 1) {
+      const currentMarker = upstreamMarkers[index];
+      const nextMarker = upstreamMarkers[index + 1];
+      const segmentStart = index === 0 ? 0 : currentMarker.index;
+      const segmentEnd = nextMarker ? nextMarker.index : lines.length;
+      const segmentText = lines.slice(segmentStart, segmentEnd).join("\n");
+      addRoutesFromText(routeMap, segmentText, currentMarker.upstreamOrigin);
     }
   }
 
-  if (hasInlineUpstream) {
-    return sortRoutes(
-      [...routeMap.entries()].map(([prefix, upstreamOrigin]) => ({
-        prefix,
-        upstreamOrigin,
-      }))
-    );
-  }
-
-  if (!defaultUpstreamOrigin) {
-    return [];
-  }
-
-  return buildProxyRoutes(extractPrefixesFromText(text), defaultUpstreamOrigin);
+  return sortRoutes(
+    [...routeMap.entries()].map(([prefix, upstreamOrigin]) => ({
+      prefix,
+      upstreamOrigin,
+    }))
+  );
 }
 
 /**

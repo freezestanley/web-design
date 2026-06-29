@@ -125,27 +125,33 @@ import defaultImage from "../../assets/default.jpg";
 
 若用户未提供 upstreamOrigin，必须在此阶段补问，不允许用占位符或猜测值继续推进。
 
-**写入 product.md 后，立即执行 proxy routes 提取**：
+若存在多组接口且对应不同 upstreamOrigin，必须按组逐一收集并在 `product.md` 中为每组接口显式写出各自的 `upstreamOrigin`。
+
+禁止把不同上游的接口混写在同一组里却不标注 origin；这会导致代理提取结果不完整，最终 `manifest.json` 缺路由。
+
+**写入 product.md 后，立即执行 product sync**：
 
 ```bash
-node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] --api-doc <接口文档路径>
-# 或通过 stdin 传入接口文档文本：
-echo "<接口文档文本>" | node scripts/lib/manifest-proxy.js <project-path> [upstream-origin]
+node scripts/product-sync.js <project-path> <task-id> [upstream-origin]
+node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
 ```
 
-提取规则（脚本自动执行，此处说明供 AI 理解和校验）：
+`product-sync.js` 会读取当前 task 的 `product.md`，同步 `workflow.json.apiState`，并在需要时提取 proxy routes 后渲染根目录 `manifest.json`。
+
+提取规则（脚本内部调用，此处说明供 AI 理解和校验）：
 
 - 从每条接口路径中剥离 `/api` 前缀后取第一段作为 prefix
   - `/api/app-center/projects` → prefix = `/app-center`
   - `/app-center/projects`（无 `/api` 前缀）→ prefix = `/app-center`
 - 若文档块内显式写了 `upstreamOrigin：http://api.example.com`，则该 block 内的接口路径绑定到该 origin
+- 若同一个 `API接口` 段内存在多组接口且使用不同 upstreamOrigin，必须在每组接口开始前单独写一行 `upstreamOrigin：...`
 - 若文档中没有 inline `upstreamOrigin`，则回退使用 CLI 传入的 `[upstream-origin]`
 - 同 upstreamOrigin 下相同 prefix 自动去重
-- 结果按前缀长度倒序写入 `.webdesign/manifest.json` 的 `proxy.routes`
+- 结果按前缀长度倒序写入 `.webdesign/manifest.json` 的 `proxy.routes`，再渲染到项目根目录 `manifest.json`
 
 执行后检查脚本输出的 route 列表是否与接口文档吻合，如有遗漏手动补充。
 
-🔴 **CHECKPOINT · G2→G3**：用户口头确认 product.md 内容后，才允许推进到设计阶段。禁止代替用户确认。
+🔴 **CHECKPOINT · G2→G3**：必须先完成 `product-sync.js`，再由用户口头确认 product.md 内容后，才允许推进到设计阶段。禁止代替用户确认。
 
 ### Step 3. 开发
 
@@ -280,6 +286,9 @@ DONE
 - `node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] [--api-doc <path>]`
   - 从接口文档提取 proxy routes 并写入 `.webdesign/manifest.json`
   - 不传 `--api-doc` 时从 stdin 读取文档文本
+- `node scripts/product-sync.js <project-path> <task-id> [upstream-origin]`
+  - 读取当前 task 的 `product.md`，同步 `workflow.json.apiState`
+  - 在有 API 时调用 `manifest-proxy.js` 写模板层，再渲染根目录 `manifest.json`
   - **必须在 G2（product.md 写入后）阶段执行，G2→G3 推进前完成**
 
 ## 行为约束
@@ -315,6 +324,7 @@ DONE
 | 13 | 修改技术栈（擅自换框架/打包工具） | 破坏项目一致性，脚本和 CI 失效 |
 | 14 | 在 manifest 模板中手写 prefix（如 `/openapi`）而不执行 `manifest-proxy.js` | prefix 与前端实际接口路径不匹配，部署后代理 403 |
 | 15 | 未明确 upstreamOrigin 就推进到 G3 | proxy.routes 缺少目标域名，平台代理服务无法转发，等同于代理未配置 |
+| 16 | 多组接口对应不同 upstreamOrigin，却不为每组接口显式写 `upstreamOrigin` | 路由会错误继承前一个上游或遗漏，最终 `manifest.json` 不完整 |
 
 ---
 

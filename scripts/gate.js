@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require("node:fs");
-const path = require("node:path");
-const { loadConfig } = require("./lib/load-config");
-const config = loadConfig();
+const { getAuditPath, readWorkflow, writeWorkflow } = require("./lib/task-files");
 
 const GATES = [
   "G0_PROJECT_SELECTED",
@@ -52,22 +50,6 @@ function parseArgs(argv) {
   };
 }
 
-function getTaskDir(projectPath, taskId) {
-  return path.join(projectPath, config.WEBDESIGN_DIR, config.TASKS_DIR, taskId);
-}
-
-function getWorkflowPath(projectPath, taskId) {
-  return path.join(getTaskDir(projectPath, taskId), "workflow.json");
-}
-
-function readWorkflow(projectPath, taskId) {
-  return JSON.parse(fs.readFileSync(getWorkflowPath(projectPath, taskId), "utf8"));
-}
-
-function writeWorkflow(projectPath, taskId, workflow) {
-  fs.writeFileSync(getWorkflowPath(projectPath, taskId), JSON.stringify(workflow, null, 2));
-}
-
 function nextGate(currentGate) {
   const index = GATES.indexOf(currentGate);
   return index >= 0 ? GATES[index + 1] || null : null;
@@ -91,13 +73,33 @@ function assertConfirmIfNeeded(workflow, options) {
 }
 
 function assertAuditPass(projectPath, taskId) {
-  const auditPath = path.join(getTaskDir(projectPath, taskId), "audit.md");
+  const auditPath = getAuditPath(projectPath, taskId);
   if (!fs.existsSync(auditPath)) {
     fail("audit.md is required before advancing to static audit passed");
   }
   const content = fs.readFileSync(auditPath, "utf8");
   if (!/\bPASS\b/.test(content)) {
     fail("audit.md must contain PASS before advancing from development");
+  }
+}
+
+function hasValidApiState(apiState) {
+  return Boolean(apiState && typeof apiState === "object" && typeof apiState.sourceHash === "string" && apiState.sourceHash);
+}
+
+function assertProductSynced(workflow) {
+  const apiState = workflow.apiState;
+
+  if (!hasValidApiState(apiState)) {
+    fail("G2 -> G3 requires product-sync first: workflow.apiState is missing or incomplete");
+  }
+
+  if (!["none", "provided"].includes(apiState.status)) {
+    fail(`G2 -> G3 requires synced API status, got: ${apiState.status || "unknown"}`);
+  }
+
+  if (apiState.status === "provided" && (!Array.isArray(apiState.routes) || apiState.routes.length === 0)) {
+    fail("G2 -> G3 requires product-sync to extract proxy routes for provided APIs");
   }
 }
 
@@ -118,6 +120,10 @@ function handleAdvance(projectPath, taskId, options) {
   }
 
   assertConfirmIfNeeded(workflow, options);
+
+  if (workflow.currentGate === "G2_PRODUCT_WRITTEN") {
+    assertProductSynced(workflow);
+  }
 
   if (workflow.currentGate === "G6_DEVELOPMENT") {
     assertAuditPass(projectPath, taskId);

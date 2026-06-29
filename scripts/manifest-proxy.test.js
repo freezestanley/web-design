@@ -53,3 +53,26 @@ test("extractPrefixesFromText keeps backward-compatible single-upstream extracti
     },
   ]);
 });
+
+test("extractRoutesFromText supports multiple upstream origins inside one API section", () => {
+  const text = `
+## API接口
+- upstreamOrigin：http://api-a.example.com
+- GET /api/app-center/projects
+- POST /api/app-center/search
+- upstreamOrigin：http://api-b.example.com
+- GET /api/user-center/profile
+- POST /api/user-center/logout
+`;
+
+  assert.deepEqual(extractRoutesFromText(text), [
+    {
+      prefix: "/user-center",
+      upstreamOrigin: "http://api-b.example.com",
+    },
+    {
+      prefix: "/app-center",
+      upstreamOrigin: "http://api-a.example.com",
+    },
+  ]);
+});

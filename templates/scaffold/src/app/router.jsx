@@ -1,6 +1,5 @@
 import { createBrowserRouter, Outlet } from 'react-router-dom'
 import { useAuth } from '../shared/auth'
-import HomePage from '../pages/home'
 import UnauthorizedPage from '../pages/unauthorized'
 
 /**
@@ -60,7 +59,7 @@ export function createRouter() {
         children: [
           {
             path: '/',
-            element: <HomePage />,
+            element: <></>,
           },
           // 在此添加更多受保护的路由
         ],

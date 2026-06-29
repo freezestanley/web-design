@@ -76,3 +76,12 @@ test("skill contract preserves scaffold auth wiring unless the user explicitly r
   assert.match(content, /默认保留.*src\/shared\/http\/axios-instance\.js/);
   assert.match(content, /明确要求.*公开页面|public page/i);
 });
+
+test("skill contract requires explicit upstreamOrigin per API group when multiple upstreams exist", () => {
+  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
+  const content = fs.readFileSync(skillPath, "utf8");
+
+  assert.match(content, /多组接口.*不同.*upstreamOrigin/);
+  assert.match(content, /每组接口.*显式写.*upstreamOrigin/);
+  assert.match(content, /禁止.*不同上游.*混写.*不标注/i);
+});
