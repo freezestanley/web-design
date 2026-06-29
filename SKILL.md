@@ -163,6 +163,9 @@ echo "<接口文档文本>" | node scripts/lib/manifest-proxy.js <project-path> 
 3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
 4. 使用选定工具形成设计方案，写入 `design.md`
 5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
+   - 禁止大文件写入、禁止所有代码都在一个文件，必须基于设计方案拆分组件，按模块化、可复用、可维护的原则组织代码
+   - 逻辑维护在hook里，UI维护在组件里，禁止把逻辑和UI混在一起
+   - 接口请求维护在`services`里,便于维护
 6. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
    - 任何情况都禁止移除SSO、路由守卫和鉴权请求头
 7. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
