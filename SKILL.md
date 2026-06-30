@@ -242,7 +242,7 @@ node scripts/publish.js <project-path> <task-id>
 发布标记格式固定为（`buildPublishMarker` 的返回值）：
 
 ```text
-##publishStart##<base64编码内容>##publishEnd##
+##publishStart## `buildPublishMarker`的返回值 ##publishEnd##
 ```
 
 发送规则：
