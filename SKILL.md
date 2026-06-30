@@ -181,9 +181,9 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 启动时自动向项目写入 `.env.local`（含 `VITE_SSO_BYPASS=true`），SSO 认证在开发预览中自动关闭
    - `.env.local` 由 `.gitignore` 保护，不进仓库；Step 4 发布构建读 `.env.production`，bypass 不生效
 8. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
-   - 截图预算固定为单次任务最多 2 次
-   - 优先分配为 1 次桌面全页截图 + 1 次 375px 移动端截图
-   - 若首轮截图已足够定位问题，剩余额度保留，不得为了“多看几眼”继续截图
+   - 截图预算固定为单次任务最多 1 次
+   - 分配为 1 次桌面全页截图
+   - 若首轮截图已足够定位问题，剩余额度保留，禁止为了“多看几眼”继续截图,多次截图
    ```
    ## Audit Report
    task: <task-id>
