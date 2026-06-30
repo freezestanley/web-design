@@ -231,20 +231,14 @@ node scripts/publish.js <project-path> <task-id>
 
 发送规则：
 
-- 发布标记必须在一个独立轮次内单独发送
+- 将 `publish.js` 的 stdout 原文复制，作为该轮次的完整回复内容
+- 禁止换行、禁止 markdown 格式化、禁止包裹任何其他文字
+- 禁止把信号内容解释或转述成人类可读摘要
 - 该轮次只输出发布标记，不拼接解释、总结、提示语或其他正文
-- 不要把发布标记和发布结果说明放在同一条消息里
+- 格式示例（严格一致，仅替换占位值）：
 
-作者字段规则：
+##publishStart##{"projectUid":"PROJ7cfedd255e419cf","sourceZipPath":"/home/ubuntu/claw-workspace/projects/agent-mgmt/project.zip","dist":"/home/ubuntu/claw-workspace/projects/agent-mgmt/dist.zip","name":"agent-mgmt","descript":"Agent 管理平台仪表盘"}##publishEnd##
 
-- 项目新建时，从当前对话的 `SESSION_KEY` 读取 session key
-- 若 `SESSION_KEY` 缺失，可兼容读取 `SESSION`
-- session 格式按 `agent:<agentId>:<channel>:<userAccount>:dm:<sessionNo>` 解析
-- 作者固定取 `userAccount`
-- 发布时优先使用 `project.json.author`
-- 若 `project.json.author` 为空，则从当前对话 session 获取作者并回写到 `project.json.author`
-- 发布标记里的作者字段始终使用最终的 `project.json.author`
-- 若项目元数据和当前对话都取不到 `userAccount`，则作者字段留空
 
 ## Gate 状态机
 
