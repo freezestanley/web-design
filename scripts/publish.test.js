@@ -156,7 +156,7 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
   );
 
   const projectMeta = JSON.parse(
@@ -214,7 +214,7 @@ test("publish leaves author empty when session is unavailable", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
   );
 });
 
@@ -232,7 +232,7 @@ test("publish prefers project author over the current session author", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
   );
 });
 
@@ -255,7 +255,7 @@ test("publish backfills empty project author from the current session", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.match(
     result.stdout,
-    /##publishStart##PROJaabbccddeeff0011｜\/.*project\.zip｜\/.*dist\.zip｜demo-project｜Demo summary##publishEnd##/
+    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
   );
 
   const updatedMeta = JSON.parse(fs.readFileSync(projectMetaPath, "utf8"));

@@ -226,7 +226,7 @@ node scripts/publish.js <project-path> <task-id>
 发布标记格式固定为：
 
 ```text
-##publishStart##项目Uid取(projectUid)｜源码zip绝对路径｜dist.zip绝对路径｜项目名称｜项目简介##publishEnd##
+##publishStart##{"projectUid":"<projectUid>","sourceZipPath":"<源码zip绝对路径>","dist":"<dist.zip绝对路径>","name":"<项目名称>","descript":"<项目简介>"}##publishEnd##
 ```
 
 发送规则：
