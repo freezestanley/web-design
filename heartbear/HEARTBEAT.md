@@ -28,3 +28,4 @@
 
 - [ ] 检查 `memory/` 目录是否需要清理旧日志
 - [ ] 检查 workspace 是否有未提交的 git 更改
+- [ ] 检查 context 当超过60%,立即执行handoff,后执行`/compact`来释放上下文

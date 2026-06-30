@@ -7,32 +7,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
 `web-design` 是总控 skill，不是单页面 HTML 生成器。它负责把页面工作强制收敛到项目管理、需求确认、设计、开发、静态审计、用户预览和最终发布的统一 SOP
 
-# init初始化
-检查前置依赖技能和配置,当发现依赖的前置技能不能使用时,强制执行安装前置步骤以及config.js配置。
-
-## 安装前置
-
-如解析失败请手动安装依赖技能：
-
-- `npx skills add https://github.com/greensock/gsap-skills -g`
-- `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend" -g`
-- `npx skills add anthropics/skills --skill frontend-design -g`
-- `npx skills add ofershap/tailwind-best-practices -g`
-- 修改config.js中`PROJECTS_DIR`改为当前 agent workspace的绝对路径下projects文件夹,如`/home/ubuntu/claw-workspace/projects`
-- 拷贝`heartbear/scripts`下的文件到当前workspace下的`scripts`目录下
-- 将`HEARTBEAT.md`追加到当前workspace下的`HEARTBEAT.md`内
-- 将context管理规则追加到当前workspace下的`AGENTS.md`内 
-  `
-   ## context管理规则
-   为防止上下文爆炸,直接卡死上下文
-   - 禁止一次性读写 >30K 的大文件,拆分成小块依次读取
-   - 禁止读取base64图片内容,单张图片可消耗数万token,直接卡死上下文
-   - 禁止将工具调用日志记录到上下文中,只保留总结后的结果,否则上下文会被日志撑爆
-   - 禁止context超过80%,应立即执行HANDOFF后使用`/compact`或`/clear`清理上下文,否则上下文会被撑爆,从HANDOFF中恢复并继续任务
-   - 禁止将长文直接放入上下文,应先读前80行总结结构,再读中间总结逻辑,最后读末尾确认完整性,基于总结修改,不保留原文
-  `
-- 执行`gateway restart`重启gateway,使配置生效
-
+# **强制执行** 读取 `references/context.md` 里的上下文管理规则，防止上下文爆炸导致后续流程失败。
 
 ## 核心规则
 
@@ -47,12 +22,12 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 续改项目时，只允许操作 `PROJECTS_DIR` 下、且存在 `.webdesign/project.json` 的托管项目。
 - 生成页面内容时，默认保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 这套脚手架鉴权基础设施，不得把页面改造顺手变成移除 SSO。
 - 只有用户明确要求生成公开页面或 public page，且明确说明不需要 SSO，才允许移除或重写上述鉴权基础设施。
-- 为防止 CDP 截图导致 token 爆炸，单次任务最多截图 2 次。
+- 为防止 CDP 截图导致 token 爆炸，单次任务最多截图 1 次。
 - 优先在静态审计阶段使用截图，非必要不截图；禁止把截图当作常规探索手段反复调用。
 
 **大文件处理**：读前 80 行总结结构 → 读中间总结逻辑 → 读末尾确认完整性 → 基于总结修改，不保留原文。
 
-## 全局配置
+### 全局配置
 
 全局配置在 `config.js`，文件内容是 JSON，由脚本读取解析：
 
@@ -64,7 +39,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
 所有新建项目都放到 `PROJECTS_DIR` 下。
 
-## 项目结构
+### 项目结构
 
 ```text
 <PROJECTS_DIR>/<project-name>/
@@ -86,20 +61,10 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
 ---
 
-## 图片素材规范
+### 图片素材规范
 
-优先使用 Unsplash/Pexels搜索图片素材
-- 图片下载到本地,放进项目 `src/assets` 文件夹
-- 找不到图,使用项目下 `src/assets/default.jpg` 作为默认占位图
-- 禁止直接读取图片,撑爆context
-- `src/assets` 下的图片在 React/Vite 项目里必须先 import，再放进 JSX；禁止写成 `./assets/*.jpg`、`/assets/*.jpg` 这类运行时路径绕过 Vite 资源处理
+项目中对图片素材的使用规则请参考 `references/image.md`，禁止直接读取图片撑爆 context。
 
-在 React/JSX 中必须这样引用：
-```jsx
-import defaultImage from "../../assets/default.jpg";
-
-<img src={defaultImage} alt="描述" />
-```
 ---
 
 
@@ -350,3 +315,8 @@ DONE
 | Gate 被 block（`gate.js block`） | 执行 `gate.js unblock` 解锁后重新推进 | 若无法 unblock，告知用户具体 block 原因，等待用户决策 |
 | `resolve-project.js` 找不到项目 | 检查 `PROJECTS_DIR` 配置和目录是否存在 | 提示用户：续改只允许操作有 `.webdesign/project.json` 的托管项目 |
 | 审计结论为 FAIL | 读取 `audit.md` 中的失败项 → 回到 `G6_DEVELOPMENT` 修复 | 不得在审计 FAIL 的情况下强行推进到 G8 |
+
+
+# 安装前置依赖和init初始化
+检查前置依赖技能和配置,当发现依赖的前置技能不能使用时,强制执行安装前置步骤以及config.js配置。
+安装前置依赖技能和项目初始化设置: `references/install.md` 里有详细步骤,请严格按照步骤执行,否则会导致后续流程失败。
