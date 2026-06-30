@@ -226,7 +226,22 @@ node scripts/publish.js <project-path> <task-id>
 发布标记格式固定为：
 
 ```text
-##publishStart##{"projectUid":"<projectUid>","sourceZipPath":"<源码zip绝对路径>","dist":"<dist.zip绝对路径>","name":"<项目名称>","descript":"<项目简介>"}##publishEnd##
+##publishStart##<base64编码内容>##publishEnd##
+```
+
+其中 `<base64编码内容>` 是对以下 JSON 做 `encodeURIComponent` 后再 base64 编码的结果：
+
+```json
+{"projectUid":"<projectUid>","sourceZipPath":"<源码zip绝对路径>","dist":"<dist.zip绝对路径>","name":"<项目名称>","descript":"<项目简介>"}
+```
+
+decode 方式：
+
+```js
+// Node.js
+const data = JSON.parse(decodeURIComponent(Buffer.from(encoded, 'base64').toString('utf8')));
+// 浏览器
+const data = JSON.parse(decodeURIComponent(atob(encoded)));
 ```
 
 发送规则：
@@ -237,7 +252,7 @@ node scripts/publish.js <project-path> <task-id>
 - 该轮次只输出发布标记，不拼接解释、总结、提示语或其他正文
 - 格式示例（严格一致，仅替换占位值）：
 
-##publishStart##{"projectUid":"PROJ7cfedd255e419cf","sourceZipPath":"/home/ubuntu/claw-workspace/projects/agent-mgmt/project.zip","dist":"/home/ubuntu/claw-workspace/projects/agent-mgmt/dist.zip","name":"agent-mgmt","descript":"Agent 管理平台仪表盘"}##publishEnd##
+##publishStart##JTdCJTIycHJvamVjdFVpZCUyMiUzQSUyMlBST0o3Y2ZlZGQyNTVlNDE5Y2YlMjIlMkMlMjJzb3VyY2VaaXBQYXRoJTIyJTNBJTIyJTJGaG9tZSUyRnVidW50dSUyRmNsYXctd29ya3NwYWNlJTJGcHJvamVjdHMlMkZhZ2VudC1tZ210JTJGcHJvamVjdC56aXAlMjIlMkMlMjJkaXN0JTIyJTNBJTIyJTJGaG9tZSUyRnVidW50dSUyRmNsYXctd29ya3NwYWNlJTJGcHJvamVjdHMlMkZhZ2VudC1tZ210JTJGZGlzdC56aXAlMjIlMkMlMjJuYW1lJTIyJTNBJTIyYWdlbnQtbWdtdCUyMiUyQyUyMmRlc2NyaXB0JTIyJTNBJTIyQWdlbnQlMjAlRTclQUUlQTElRTclOTAlODYlRTUlQjklQjMlRTUlOEYlQjAlRTQlQkIlQUElRTglQTElQTglRTclOUIlOTglMjIlN0Q=##publishEnd##
 
 
 ## Gate 状态机
