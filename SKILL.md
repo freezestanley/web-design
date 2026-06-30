@@ -205,6 +205,9 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 提示文案严格使用纯文本句式，例如：`请用浏览器打开 127.0.0.1:4173 预览页面。若显示失败如链接被拒绝请告诉我，将重新打开页面。`
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接、富文本链接或“点这里打开”一类表述
 10. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
+11. 🔴 **CHECKPOINT · G8→G9**：开发预览无误后，必须询问用户：「预览是否满意？若无修改将进入发布流程。」
+    - 禁止在未获得用户明确确认前自行推进到 Step 4
+    - 用户回复确认后才能执行发布
 
 ### Step 4. 发布
 
@@ -221,38 +224,22 @@ node scripts/publish.js <project-path> <task-id>
 - 打出源码 `project.zip`
 - 打出 zip 包根目录包含 `manifest.json` 和 `dist` 的 `dist.zip`
 - 回写 `.webdesign/project.json`
-- 输出发布标记
+- 调用 `scripts/lib/publish-marker.js` 中的 `buildPublishMarker({ projectUid, sourceZipPath, distZipPath, projectName, descript })` 生成发布标记，将其返回值原样输出，禁止自行拼接
+- 输出发布标记，必须为独立一轮
 
-发布标记格式固定为：
+发布标记格式固定为（`buildPublishMarker` 的返回值）：
 
 ```text
 ##publishStart##<base64编码内容>##publishEnd##
 ```
 
-其中 `<base64编码内容>` 是对以下 JSON 做 `encodeURIComponent` 后再 base64 编码的结果：
-
-```json
-{"projectUid":"<projectUid>","sourceZipPath":"<源码zip绝对路径>","dist":"<dist.zip绝对路径>","name":"<项目名称>","descript":"<项目简介>"}
-```
-
-decode 方式：
-
-```js
-// Node.js
-const data = JSON.parse(decodeURIComponent(Buffer.from(encoded, 'base64').toString('utf8')));
-// 浏览器
-const data = JSON.parse(decodeURIComponent(atob(encoded)));
-```
-
 发送规则：
 
-- 将 `publish.js` 的 stdout 原文复制，作为该轮次的完整回复内容
+- 只允许发送发布标记，禁止任何其他文案
+- 禁止在发布标记前后拼接任何其他文字
 - 禁止换行、禁止 markdown 格式化、禁止包裹任何其他文字
 - 禁止把信号内容解释或转述成人类可读摘要
 - 该轮次只输出发布标记，不拼接解释、总结、提示语或其他正文
-- 格式示例（严格一致，仅替换占位值）：
-
-##publishStart##JTdCJTIycHJvamVjdFVpZCUyMiUzQSUyMlBST0o3Y2ZlZGQyNTVlNDE5Y2YlMjIlMkMlMjJzb3VyY2VaaXBQYXRoJTIyJTNBJTIyJTJGaG9tZSUyRnVidW50dSUyRmNsYXctd29ya3NwYWNlJTJGcHJvamVjdHMlMkZhZ2VudC1tZ210JTJGcHJvamVjdC56aXAlMjIlMkMlMjJkaXN0JTIyJTNBJTIyJTJGaG9tZSUyRnVidW50dSUyRmNsYXctd29ya3NwYWNlJTJGcHJvamVjdHMlMkZhZ2VudC1tZ210JTJGZGlzdC56aXAlMjIlMkMlMjJuYW1lJTIyJTNBJTIyYWdlbnQtbWdtdCUyMiUyQyUyMmRlc2NyaXB0JTIyJTNBJTIyQWdlbnQlMjAlRTclQUUlQTElRTclOTAlODYlRTUlQjklQjMlRTUlOEYlQjAlRTQlQkIlQUElRTglQTElQTglRTclOUIlOTglMjIlN0Q=##publishEnd##
 
 
 ## Gate 状态机
