@@ -19,7 +19,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - `npx skills add anthropics/skills --skill frontend-design -g`
 - `npx skills add ofershap/tailwind-best-practices -g`
 - 修改config.js中`PROJECTS_DIR`改为当前 agent workspace的绝对路径下projects文件夹,如`/home/ubuntu/claw-workspace/projects`
-- 将context管理规则追加到`AGENTS.md`内 
+- 将context管理规则追加到当前workspace下的`AGENTS.md`内 
   `
    ## context管理规则
    为防止上下文爆炸,直接卡死上下文
