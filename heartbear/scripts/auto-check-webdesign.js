@@ -71,19 +71,28 @@ function canAutoAdvance(gate) {
 function hasCode(projectPath, pageSlug) {
   const pagesDir = path.join(projectPath, "src", "pages");
   if (!fs.existsSync(pagesDir)) return false;
-  const entries = fs.readdirSync(pagesDir, { withFileTypes: true });
-  return entries.length > 0;
+  const candidates = [
+    path.join(pagesDir, pageSlug),
+    path.join(pagesDir, `${pageSlug}.jsx`),
+    path.join(pagesDir, `${pageSlug}.tsx`),
+    path.join(pagesDir, `${pageSlug}.vue`),
+    path.join(pagesDir, `${pageSlug}.js`),
+  ];
+  return candidates.some(p => fs.existsSync(p));
 }
 
-function hasDist(projectPath) {
-  return fs.existsSync(path.join(projectPath, "dist", "index.html"));
+function hasDist(projectPath, pageSlug) {
+  const taskDist = path.join(projectPath, "dist", pageSlug, "index.html");
+  const rootDist = path.join(projectPath, "dist", "index.html");
+  return fs.existsSync(taskDist) || fs.existsSync(rootDist);
 }
 
 function hasAuditPass(projectPath, taskId) {
   const auditPath = path.join(projectPath, ".webdesign", "tasks", taskId, "audit.md");
   if (!fs.existsSync(auditPath)) return false;
   const content = fs.readFileSync(auditPath, "utf8");
-  return /\bPASS\b/.test(content);
+  // 匹配 "## 结论" 节下第一个非空行必须是 PASS，模板默认是 PENDING 不通过
+  return /^##\s*结论\s*\n\s*PASS\s*$/m.test(content);
 }
 
 function advanceGate(projectPath, taskId, confirm = null) {
@@ -120,27 +129,6 @@ function runPublish(projectPath, taskId) {
   }
 }
 
-function writeAuditPass(projectPath, taskId) {
-  const auditPath = path.join(projectPath, ".webdesign", "tasks", taskId, "audit.md");
-  const today = new Date().toISOString().split("T")[0];
-  const content = `## Audit Report
-
-task: ${taskId}
-date: ${today}
-conclusion: PASS
-
-### 检查项
-- [x] 页面正常加载，无 JS 报错
-- [x] 所有图片资源加载成功（无 404）
-- [x] 移动端适配（375px）正常
-- [x] 文案与 product.md 一致
-- [x] 动效无卡顿
-
-### 失败项（如有）
-无
-`;
-  fs.writeFileSync(auditPath, content);
-}
 
 function main() {
   const projects = findProjects();
@@ -174,24 +162,11 @@ function main() {
       // 策略：根据 gate 状态和项目实际情况决定行动
       switch (currentGate) {
         case "G5_DESIGN_CONFIRMED":
-          // 如果代码已写完，自动推进到 G6
+          // hasCode 按 pageSlug 精确匹配，只推 G5→G6，止步
           if (hasCode(projectPath, pageSlug)) {
-            result.actions.push("检测到代码已就绪，自动推进 G5→G6");
-            const r = advanceGate(projectPath, task.taskId, "代码就绪");
+            const r = advanceGate(projectPath, task.taskId);
             if (r.ok) {
               result.actions.push("✅ 已推进到 G6_DEVELOPMENT");
-              // 继续检查能否推进到 G7
-              if (hasDist(projectPath)) {
-                writeAuditPass(projectPath, task.taskId);
-                const r2 = advanceGate(projectPath, task.taskId);
-                if (r2.ok) {
-                  result.actions.push("✅ 已推进到 G7_STATIC_AUDIT_PASSED");
-                  const r3 = advanceGate(projectPath, task.taskId);
-                  if (r3.ok) {
-                    result.actions.push("✅ 已推进到 G8_PREVIEW_CONFIRMED");
-                  }
-                }
-              }
             } else {
               result.actions.push(`❌ 推进失败: ${r.error}`);
             }
@@ -201,35 +176,25 @@ function main() {
           break;
 
         case "G6_DEVELOPMENT":
-          if (hasDist(projectPath)) {
+          if (hasDist(projectPath, pageSlug)) {
             if (!hasAuditPass(projectPath, task.taskId)) {
-              writeAuditPass(projectPath, task.taskId);
-              result.actions.push("📝 自动写入 audit PASS");
-            }
-            const r = advanceGate(projectPath, task.taskId);
-            if (r.ok) {
-              result.actions.push("✅ 已推进到 G7_STATIC_AUDIT_PASSED");
-              const r2 = advanceGate(projectPath, task.taskId);
-              if (r2.ok) {
-                result.actions.push("✅ 已推进到 G8_PREVIEW_CONFIRMED");
-              }
+              result.actions.push("⏸ 等待人工审计：请填写 audit.md 并将结论改为 PASS");
             } else {
-              result.actions.push(`❌ 推进失败: ${r.error}`);
+              const r = advanceGate(projectPath, task.taskId);
+              if (r.ok) {
+                result.actions.push("✅ 已推进到 G7_STATIC_AUDIT_PASSED");
+              } else {
+                result.actions.push(`❌ 推进失败: ${r.error}`);
+              }
             }
           } else {
-            result.actions.push("⏳ 等待构建完成");
+            result.actions.push("⏳ 等待构建完成（dist 不存在）");
           }
           break;
 
         case "G7_STATIC_AUDIT_PASSED":
-          {
-            const r = advanceGate(projectPath, task.taskId);
-            if (r.ok) {
-              result.actions.push("✅ 已推进到 G8_PREVIEW_CONFIRMED");
-            } else {
-              result.actions.push(`❌ 推进失败: ${r.error}`);
-            }
-          }
+          // G8 = PREVIEW_CONFIRMED，必须人工预览后手动 advance，不自动推进
+          result.actions.push("⏸ 等待用户预览确认后手动执行 gate advance");
           break;
 
         case "G8_PREVIEW_CONFIRMED":
