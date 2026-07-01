@@ -78,9 +78,9 @@ function assertAuditPass(projectPath, taskId) {
     fail("audit.md is required before advancing to static audit passed");
   }
   const content = fs.readFileSync(auditPath, "utf8");
-  // 匹配 "## 结论" 节下第一个非空行必须是 PASS，模板默认是 PENDING 不通过
-  if (!/^##\s*结论\s*\n\s*PASS\s*$/m.test(content)) {
-    fail('audit.md 的"结论"部分必须明确写 PASS 才能推进（当前为 PENDING 或缺失）');
+  // 匹配 audit.md 模板格式 "conclusion: PASS"
+  if (!/^conclusion:\s*PASS\s*$/m.test(content)) {
+    fail('audit.md 的 conclusion 字段必须为 PASS 才能推进（当前为 FAIL、PENDING 或缺失）');
   }
 }
 

@@ -10,7 +10,7 @@
   - 修改config.js中`PROJECTS_DIR`改为当前 agent workspace的绝对路径下projects文件夹,如`/home/ubuntu/claw-workspace/projects`
   - 拷贝`heartbear/scripts`下的文件到当前workspace下的`scripts`目录下
   - 将`HEARTBEAT.md`追加到当前workspace下的`HEARTBEAT.md`内
-  - 将context管理规则追加到当前workspace下的`AGENTS.md`内 
+  - 将context管理规则追加到当前workspace下的`AGENTS.md`内,追加到底部,禁止全量覆盖以免原有内容丢失
     context管理规则: `references/context.md`,防止上下文爆炸,直接卡死上下文
   - 执行先执行 HANDOFF 保存状态，然后 /compact释放上下文
   - 执行`gateway restart`重启gateway,使配置生效

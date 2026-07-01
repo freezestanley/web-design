@@ -207,7 +207,7 @@ test("G9_PUBLISH_READY cannot advance directly to DONE", () => {
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId, "--confirm", "设计确认通过"]);
   gateCommand(["advance", projectPath, taskId]);
-  fs.writeFileSync(path.join(taskDir, "audit.md"), "# Audit\n\n## 结论\nPASS\n");
+  fs.writeFileSync(path.join(taskDir, "audit.md"), "# Audit\n\nconclusion: PASS\n");
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId, "--confirm", "可以发布"]);
@@ -228,7 +228,7 @@ test("reopen-dev returns previewed task to G6_DEVELOPMENT", () => {
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId, "--confirm", "设计确认通过"]);
   gateCommand(["advance", projectPath, taskId]);
-  fs.writeFileSync(path.join(taskDir, "audit.md"), "# Audit\n\n## 结论\nPASS\n");
+  fs.writeFileSync(path.join(taskDir, "audit.md"), "# Audit\n\nconclusion: PASS\n");
   gateCommand(["advance", projectPath, taskId]);
   gateCommand(["advance", projectPath, taskId]);
 

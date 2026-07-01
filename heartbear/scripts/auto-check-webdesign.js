@@ -91,8 +91,8 @@ function hasAuditPass(projectPath, taskId) {
   const auditPath = path.join(projectPath, ".webdesign", "tasks", taskId, "audit.md");
   if (!fs.existsSync(auditPath)) return false;
   const content = fs.readFileSync(auditPath, "utf8");
-  // 匹配 "## 结论" 节下第一个非空行必须是 PASS，模板默认是 PENDING 不通过
-  return /^##\s*结论\s*\n\s*PASS\s*$/m.test(content);
+  // 匹配 audit.md 模板格式 "conclusion: PASS"
+  return /^conclusion:\s*PASS\s*$/m.test(content);
 }
 
 function advanceGate(projectPath, taskId, confirm = null) {

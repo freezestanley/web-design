@@ -98,8 +98,7 @@ ${pageSlug}
 
 ## 修改复查
 
-## 结论
-PENDING
+conclusion: PENDING
 `;
 }
 
