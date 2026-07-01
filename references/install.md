@@ -1,5 +1,6 @@
 ## 安装前置
 
+
 - **重要** 所有安装都在当前workspace
 - 安装流程: 如解析失败请手动安装依赖技能
   - `npx skills add https://github.com/greensock/gsap-skills`
