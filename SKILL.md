@@ -15,7 +15,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 页面相关的新建、修改、编译、预览、发布，都必须走 `web-design`。
 - 禁止修改技术栈（擅自换框架/打包工具），否则破坏项目一致性，脚本和 CI 失效。
 - 禁止使用其他项目模版只允许使用template/scaffold,否则破坏项目一致性，脚本和 CI 失效。
-- 禁止跳过 SOP Gate。
+- **强制必须准守** 禁止跳过 SOP Gate,不遵守就立即失败
 - 禁止未确认就推进确认门。
 - 禁止绕过 `publish.js` 直接发布。
 - 审计和预览必须基于 `npm run build` 之后的静态页面，不允许基于 dev server。
@@ -68,7 +68,9 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 ---
 
 
-## SOP 步骤
+## SOP 步骤 
+
+**强制必须准守,不遵守就立即失败**
 
 ### Step 1. 项目确认
 
