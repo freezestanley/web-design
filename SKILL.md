@@ -204,6 +204,8 @@ node scripts/publish.js <project-path> <task-id>
 - 打出源码 `project.zip`
 - 打出 zip 包根目录包含 `manifest.json` 和 `dist` 的 `dist.zip`
 - 回写 `.webdesign/project.json`
+
+#### 输出发布标记
 - 新的独立一轮，输出发布标记
    - 调用 `scripts/lib/publish-marker.js` 中的 `buildPublishMarker({ projectUid, sourceZipPath, distZipPath, projectName, descript })` 生成发布标记
    - **强制执行** 发布标记禁止做任何修改或解读,禁止转换成人类可读模式,只能将其返回值原样输出,避免被误解为普通文本或其他内容,否则会导致后续流程失败。
