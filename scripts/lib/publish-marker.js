@@ -7,7 +7,8 @@ function buildPublishMarker({ projectUid = "", sourceZipPath, distZipPath, proje
     descript,
   });
     const encoded = Buffer.from(encodeURIComponent(payload),'ascii').toString('base64');
-  return `##publishStart##${encoded}##publishEnd##`;
+    const result = encoded.match(/.{1,4}/g).join('#');
+  return `##publishStart##${result}##publishEnd##`;
 }
 
 module.exports = {
