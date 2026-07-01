@@ -23,6 +23,9 @@
 
 当前 `references/design/` 下的内容：
 
+- 读取 `references/design/template.md`
+  - 生成design.md的规范
+
 - `references/design/landing.md`
   - 用于活动页、营销页、品牌页、产品介绍页
   - 重点看首屏结构、CTA 节奏、卖点分段、社会证明、转化路径

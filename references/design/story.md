@@ -1,43 +1,69 @@
-你是一个资深前端开发者，请生成一个“滚动驱动的逐帧动画舞台”HTML页面。页面被设计成一个剧场舞台的样式，但舞台上的表演者不是角色，而是页面中的内容元素（如卡片、标题、段落、图片等）。这些元素的表现如同逐帧动画：向下滚动时，元素依次前进到下一帧状态；向上滚动时，元素退回上一帧状态，形成可正放可倒放的动画效果。
+# DESIGN.md - 滚动驱动逐帧动画舞台视觉设计系统规范
 
-具体要求：
+> **[重要声明]** 本文档为 AI Agent 的最高优先级 UI 判定准则。
+> AI 在编写、修改或重构本项目的 HTML 结构、CSS 样式与 JavaScript 动画逻辑时，必须 100% 像素级遵循本文档，严禁自行进行风格脑补。
 
-1. 舞台氛围（纯CSS绘制）：
-   - 页面主体固定于视口中央，使用 sticky 定位，背景为剧场舞台风格（暗色渐变、木质地板纹理）。
-   - 包含左右红色幕布（带褶皱和轻微摆动）、顶部帷幔（波浪下摆加金色流苏）、两盏闪烁的聚光灯，完全用CSS实现，无图片。
-   - 整体尺寸响应式，适配移动端。
+---
 
-2. 滚动机制：
-   - 外层容器高度设置为500vh，舞台区域通过 position: sticky; top: 0; 固定在视口内。
-   - 使用 requestAnimationFrame 循环监听滚动，计算滚动进度（0到1）。
-   - 预定义总帧数（如60帧），当前帧 = floor(进度 × 总帧数)，限制在 0 到 总帧数-1 之间。
-   - 向下滚动进度增加，帧号递增（前进）；向上滚动进度减小，帧号递减（倒退）。切换帧时更新元素的样式。
+## 1. 品牌定调与设计哲学 (Design Philosophy)
+*   **核心美学**: 古典哥特剧场风格（Classical Theater Aesthetics）融合现代微数字拟物。
+*   **情感画布**: 模拟真实大剧院的深邃感，通过暗色天鹅绒红、木质地毯与发光聚光灯，让用户通过“滚动”这一行为变成舞台的导演，赋予网页元素以拟人化的戏剧生命力。
+*   **视觉对齐**: 质感向电影级交互、Apple 官网滚动叙事看齐。
 
-3. 内容元素（逐帧动画对象）：
-   - 在舞台中央放置一组真实的内容元素，例如：
-     · 一张卡片（带标题、描述、按钮）
-     · 一段引言文字
-     · 一个圆形头像
-     · 一个装饰性图形或图标
-   - 这些元素初始使用绝对定位或Flex布局放置在舞台中。
-   - 预定义所有帧的动画数据，存储为一个数组 frameData，每一项是一个对象，记录该帧下每个元素的CSS属性（例如 translateX, translateY, scale, rotate, opacity 等）。
-   - 动画数据可以用数学函数（正弦、余弦、分段线性插值）生成，模拟元素从舞台左侧飞入、放大、旋转、淡出等动作。
-   - 每一帧数据针对每个元素都是明确的，逐帧切换时直接应用这些属性，无过渡动画，呈现逐帧感。
-   - 帧与帧之间的差异足够大时能看出明显的“逐帧跳跃”，但整体动作连贯。
+---
 
-4. 帧指示器：
-   - 在舞台右下角显示一排圆点（数量=总帧数），当前帧圆点高亮（如金色发光）。
-   - 同时显示当前帧序号和总帧数（如“12 / 60”），实时更新。
+## 2. 语义化色彩代币 (Color Tokens & Theme)
+```css
+:root {
+  
+}
+```
 
-5. 页面结构：
-   - 开头有引导区域（标题“滚动舞台”，加向下箭头提示）。
-   - 结尾有结束区域，当滚动进度 > 92% 时淡入显示“感谢观赏”。
-   - 所有文字使用优雅的衬线字体，配色与舞台灯光协调。
+---
 
-6. 技术限制：
-   - 单个HTML文件，内嵌CSS和JS，无任何外部依赖。
-   - 帧数据在JS中生成，Canvas 不是必需的，直接操作DOM元素的 CSS transform 和 opacity。
-   - 性能优化：仅在帧号变化时更新DOM，避免每帧都读写样式。
-   - 窗口大小变化时重新计算舞台尺寸并刷新当前帧。
+## 3. 严苛的排版与字阶系统 (Typography Scale)
+*   **字体栈 (Font Family)**: `font-family: 'Playfair Display', 'Georgia', 'Nimbus Roman No9 L', serif;` (严格采用优雅衬线体)
+*   **系统字阶表**:
+    1.  `Stage Hero/Title`: `3.5rem (56px) | line-height: 1.2 | tracking: 0.05em | font-weight: 700`
+    2.  `Card Heading`: `1.5rem (24px) | line-height: 1.3 | font-weight: 600 | color: var(--text-stage-light)`
+    3.  `Body Regular`: `1rem (16px) | line-height: 1.6 | font-weight: 400 | color: rgba(254, 252, 240, 0.85)`
+    4.  `Indicator/Meta`: `0.875rem (14px) | font-family: monospace | color: var(--tassel-gold)`
 
-请根据上述要求直接输出完整的HTML代码，不要解释。
+---
+
+## 4. 空间与布局度量衡 (Spacing & Layout Grid)
+*   **原子级间距基准 (8px 步长法则)**: 所有间距必须为 8 的倍数：`8px | 16px | 24px | 32px | 48px | 64px`。
+*   **舞台视口限制 (Stage Container)**: 
+    *   舞台视口区域使用 `position: sticky; top: 0; width: 100vw; height: 100vh; overflow: hidden;`。
+    *   外部滚动总动能容器固定为 `height: 500vh;`。
+*   **舞台演员对齐**: 
+    *   中央演员（卡片、引言等）采用绝对定位 `position: absolute; left: 50%; top: 50%;`。
+    *   通过 `transform: translate(-50%, -50%)` 作为基准点，后续逐帧动画的数学函数在此外层基准上叠加。
+
+---
+
+## 5. 标准原子组件与剧场元素规范 (Theater Elements)
+
+### 5.1 CSS 幕布与帷幔 (Curtains - 纯 CSS 绘制)
+*   **顶部帷幔**: 使用 `background: linear-gradient(...)` 绘制垂坠质感，底边通过 `clip-path: polygon(...)` 截断出优美的古典波浪下摆，并叠加 `border-bottom: 4px solid var(--tassel-gold)` 作为流苏线。
+*   **左右两侧幕布**: 宽度各占视口的 `15%`，高 `100%`。利用多重线性渐变 `linear-gradient(90deg, ...)` 模拟出天鹅绒布料起伏不定的褶皱明暗，并附加微弱的 `keyframes` 摇曳动效。
+
+### 5.2 舞台地板 (Stage Floor)
+*   **透视质感**: 视口底部 `20vh` 区域为地板，使用 `linear-gradient(180deg, var(--stage-floor-light), var(--stage-floor-dark))`。
+*   **木纹刻线**: 结合 `repeating-linear-gradient` 顺着透视角度拉出密集的纵向线条，构成仿木质地板质感。
+
+---
+
+## 6. 滚动驱动逐帧核心机制 (Step-Frame Engine)
+*   **总帧数定量**: `const TOTAL_FRAMES = 60;`
+*   **状态冻结与增量读写 (反幻觉红线)**:
+    *   必须使用 `requestAnimationFrame` 进行滚动防抖。
+    *   **核心优化**: 只有在 `Math.floor(progress * TOTAL_FRAMES)` 计算出的帧号发生**绝对变化**时，才允许写入 DOM 样式。若帧号未变，直接 `return`，拒绝一切无意义重绘。
+*   **逐帧跳跃感**: 帧与帧之间的变换数据必须是**离散、确定**的，直接覆盖对应元素的 `style.transform` 与 `style.opacity`。**严禁**为演员元素配置 `transition` 过渡属性，以确保绝对纯正的“逐帧泥偶/定格动画”跳跃感。
+
+---
+
+## 7. AI 代理严禁踩踏的红线 (Absolute Don'ts for AI)
+*   ❌ **禁止外部依赖**: 严禁引入任何第三方 JS 动画库（如 GreenSock/GSAP）或外部图片资源。幕布、灯光、地板必须纯 CSS 渲染。
+*   ❌ **禁止缓动平滑**: 演员元素**严禁**带有 `transition: transform ...` 等平滑过渡，帧切换必须是瞬间硬切的，否则会摧毁逐帧动画的既定艺术风格。
+*   ❌ **禁止奇数步长**: 帧指示器圆点的间距、尺寸必须严格遵循 8px 步长，高亮状态必须带有 `box-shadow` 金色复古微光。
