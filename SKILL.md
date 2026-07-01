@@ -152,15 +152,20 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 禁止大文件写入、禁止所有代码都在一个文件，必须基于设计方案拆分组件，按模块化、可复用、可维护的原则组织代码
    - 逻辑维护在hook里，UI维护在组件里，禁止把逻辑和UI混在一起
    - 接口请求维护在`services`里,便于维护
-6. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
+6. 先制定开发计划,再按计划开发,禁止随意改动开发计划
+   - 开发计划落地文档task.md,禁止放入context,否则容易撑爆上下文
+   - task.md只有使用时才能读取
+   - 将大任务拆分成多个小任务,禁止一次性写完所有代码,否则容易出错
+   - 每个任务依次执行，禁止跳过任务,否则容易出错
+7. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
    - 任何情况都禁止移除SSO、路由守卫和鉴权请求头
-7. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
+8. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
    - 该脚本负责统一启动 dev preview，并自动治理由 `web-design` 管理过的 Vite 服务
    - 同一 `project-path` 若已有旧的 managed dev preview，启动新服务前必须自动关闭旧服务
    - 全局最多只保留最近 5 个 managed dev preview；超出的最老服务必须自动关闭释放端口
    - 启动时自动向项目写入 `.env.local`（含 `VITE_SSO_BYPASS=true`），SSO 认证在开发预览中自动关闭
    - `.env.local` 由 `.gitignore` 保护，不进仓库；Step 4 发布构建读 `.env.production`，bypass 不生效
-8. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
+9. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
    - 截图预算固定为单次任务最多 1 次
    - 分配为 1 次桌面全页截图
    - 若首轮截图已足够定位问题，剩余额度保留，禁止为了“多看几眼”继续截图,多次截图
@@ -180,12 +185,12 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    ### 失败项（如有）
    - <描述具体问题>
    ```
-9. 主动在浏览器打开启动的服务,并把访问地址发给用户
+10. 主动在浏览器打开启动的服务,并把访问地址发给用户
    - 若自动打开失败，或用户侧出现“页面拒绝链接”等异常，必须补发一条站在用户视角的手动预览提示
    - 提示文案严格使用纯文本句式，例如：`请用浏览器打开 127.0.0.1:4173 预览页面。若显示失败如链接被拒绝请回复用浏览器或CDP来重新打开页面。`
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接、富文本链接或“点这里打开”一类表述
-10. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
-11. 🔴 **CHECKPOINT · G8→G9**：开发预览无误后，必须询问用户：「预览是否满意？若无修改将进入发布流程。」
+11. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
+12. 🔴 **CHECKPOINT · G8→G9**：开发预览无误后，必须询问用户：「预览是否满意？若无修改将进入发布流程。」
     - 禁止在未获得用户明确确认前自行推进到 Step 4
     - 用户回复确认后才能执行发布
 
