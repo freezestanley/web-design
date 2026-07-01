@@ -204,14 +204,9 @@ node scripts/publish.js <project-path> <task-id>
 - 打出源码 `project.zip`
 - 打出 zip 包根目录包含 `manifest.json` 和 `dist` 的 `dist.zip`
 - 回写 `.webdesign/project.json`
-- 调用 `scripts/lib/publish-marker.js` 中的 `buildPublishMarker({ projectUid, sourceZipPath, distZipPath, projectName, descript })` 生成发布标记，将其返回值原样输出，禁止自行拼接
-- 输出发布标记，必须为独立一轮
+- 新的独立一轮，输出发布标记
+   - 调用 `scripts/lib/publish-marker.js` 中的 `buildPublishMarker({ projectUid, sourceZipPath, distZipPath, projectName, descript })` 生成发布标记，禁止做任何修改或解读，将其返回值原样输出
 
-发布标记格式固定为（`buildPublishMarker` 的返回值）：
-
-```text
-##publishStart## `buildPublishMarker`的返回值 ##publishEnd##
-```
 
 发送规则：
 

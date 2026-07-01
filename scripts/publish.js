@@ -88,5 +88,5 @@ process.stdout.write(`${buildPublishMarker({
   sourceZipPath,
   distZipPath,
   projectName: projectMeta.name,
-  summary: projectMeta.summary
+  descript: projectMeta.summary
 })}\n`);
