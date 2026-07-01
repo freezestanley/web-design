@@ -293,7 +293,7 @@ DONE
 | 9 | 在普通页面生成任务里删除 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` | 页面会绕过脚手架 SSO、路由守卫和鉴权请求头，生成结果与模板约束失配 |
 | 10 | 把 `src/assets` 写成 `./assets/*.jpg` 或 `/assets/*.jpg` 直接放进 JSX | Vite 不会按模块产出资源，构建后图片 404 |
 | 11 | 在 HANDOFF 前执行 /compact 或 /clear | Gate 状态和任务进度丢失，无法续改 |
-| 12 | 单次任务截图超过 2 次 | CDP 截图 token 成本过高，容易把上下文和审计成本打爆 |
+| 12 | 单次任务截图超过 1 次 | CDP 截图 token 成本过高，容易把上下文和审计成本打爆 |
 | 13 | 修改技术栈（擅自换框架/打包工具） | 破坏项目一致性，脚本和 CI 失效 |
 | 14 | 在 manifest 模板中手写 prefix（如 `/openapi`）而不执行 `manifest-proxy.js` | prefix 与前端实际接口路径不匹配，部署后代理 403 |
 | 15 | 未明确 upstreamOrigin 就推进到 G3 | proxy.routes 缺少目标域名，平台代理服务无法转发，等同于代理未配置 |
