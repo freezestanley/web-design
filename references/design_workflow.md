@@ -1,349 +1,108 @@
-# Design Workflow Reference
+# Web 设计工作流
 
-这份文档是 `web-design` 在 Step 3 开发前必须读取的设计参考。目的不是生成固定风格，而是统一：
+## 全景概览
 
-- 先读哪些本地设计资料
-- 再接哪些设计工具
-- 每个工具负责什么
-- 页面从设计到实现的组合顺序
+整个流程分四个阶段，每阶段调用不同子技能。
 
-## 0. 必读顺序
+| 阶段 | 核心目标 | 主要子技能 |
+|------|----------|------------|
+| 第一阶段：构思与探索 | 明确设计方向，产出视觉参考 | `imagegen-frontend-web` / `mobile`, `brandkit` |
+| 第二阶段：定调与选型 | 确定风格语言，选择核心引擎 | `high-end-visual-design`, `minimalist-ui`, `industrial-brutalist-ui` |
+| 第三阶段：编码与实现 | 将设计转化为高质量代码 | `design-taste-frontend` (v2), `gpt-taste` |
+| 第四阶段：审计与交付 | 强制完整输出，或对旧项目重设计 | `full-output-enforcement`, `redesign-existing-projects`, `stitch-design-taste` |
 
-进入 Step 3 后，先按这个顺序读取和思考：
+---
 
-1. 读取 `references/design/` 下的本地资料
-2. 判断当前页面类型
-3. 选择合适的设计工具组合
-4. 输出 `design.md`
-5. 再进入代码开发
+## 第一阶段：构思与探索
 
-禁止跳过本地设计资料直接开写。
+**目标**：写代码前先对齐视觉预期，避免"边写边改"的低效循环。
 
-## 1. 本地设计资料目录
+**步骤**：
 
-当前 `references/design/` 下的内容：
+1. **生成视觉参考**：向 AI 描述项目类型，使用 `imagegen-frontend-web`（或 `mobile`）生成几张不同布局的参考图，选定一张作为后续编码基准。
+2. **建立品牌感**（按需）：使用 `brandkit` 生成配色盘和字体建议，为后续所有子技能提供统一的"调色板"。
 
-- 读取 `references/design/template.md`
-  - 生成design.md的规范
+**示例 Prompt**：
 
-- `references/design/landing.md`
-  - 用于活动页、营销页、品牌页、产品介绍页
-  - 重点看首屏结构、CTA 节奏、卖点分段、社会证明、转化路径
-
-- `references/design/ppt.md`
-  - 用于故事型页面、汇报型页面、品牌叙事页、长滚动展示页
-  - 重点看章节推进、叙事节奏、视觉切页感、信息分幕
-
-- `references/design/background.md`
-  - 页面/元素的背景元素动效设计
-  
-- `references/design/story.md`
-  - 舞台故事设计方案
-
-优先级规则：
-
-- 营销、品牌、产品介绍类页面：先读 `landing.md`
-- 叙事、演示、故事、scrolltelling 类页面：先读 `ppt.md`
-- 二者兼有时：先读主目标对应的文件，再补读另一个
-
-## 2. 设计工具职责梳理
-
-下面这些工具不是平铺一起用，而是各自承担不同层次的职责。
-
-### `design-taste-frontend`
-
-定位：
-
-- 主设计系统入口
-- 负责整体页面结构、视觉基调、区块节奏
-
-使用时机：
-
-- 大多数页面在设计阶段都应先经过它
-- 特别适合营销页、品牌页、产品功能页、故事型页面
-
-特征要求：
-
-- 无 em-dash
-- 零模板感
-- Eyebrow 使用克制
-
-它解决的问题：
-
-- 页面看起来是否有明确设计方向
-- 是否摆脱通用 AI 模板味
-- 区块之间是否有节奏和气质区分
-
-### `frontend-design`
-
-定位：
-
-- 差异化设计语言增强器
-- 用于把页面做出更明确的视觉人格
-
-使用时机：
-
-- 页面需要更强品牌辨识度
-- 页面需要更强叙事性和氛围感
-- 默认设计过于普通时，用它拉开差异
-
-特征要求：
-
-- Syne 字体
-- 纪录片式叙事结构
-
-它解决的问题：
-
-- 页面是否足够独特
-- 叙事是否更有镜头感和章节感
-- 字体与结构是否形成更强记忆点
-
-### `tailwind-best-practices`
-
-定位：
-
-- Tailwind v4 语法规范约束
-- 负责把视觉方案落成稳定、可维护的样式实现
-
-使用时机：
-
-- 进入代码开发阶段后必须参考
-- 尤其在样式类名组织、token 使用、响应式写法上要遵循
-
-它解决的问题：
-
-- Tailwind 写法是否规范
-- 是否出现难维护的堆叠类名
-- 是否偏离项目的样式组织方式
-
-### `gsap-scrolltrigger`
-
-定位：
-
-- 核心滚动叙事引擎
-
-使用时机：
-
-- 页面需要强滚动叙事
-- 页面需要章节推进、sticky 场景、scroll reveal、timeline 驱动
-
-适用场景：
-
-- 品牌故事页
-- 发布页
-- 产品演示页
-- 长滚动 PPT 感页面
-
-它解决的问题：
-
-- 页面是否需要滚动驱动的镜头感
-- 内容切换是否需要时间轴管理
-- 是否需要更强的叙事推进
-
-注意：
-
-- 只有当 brief 明确需要滚动叙事时才上
-- 不要为了炫技把普通功能页强行改成 scrollytelling
-
-### `motion.js`
-
-定位：
-
-- 微交互层
-- 负责按钮按压反馈、卡片 3D tilt、轻量状态动画
-
-使用时机：
-
-- 按钮、卡片、悬浮块需要更细腻的反馈
-- 页面不需要重滚动引擎，但需要更强交互质感
-
-它解决的问题：
-
-- 页面是否缺少触感
-- hover / press / focus 是否太死
-- 卡片与按钮是否缺少反馈层次
-
-### `React Bits`
-
-定位：
-
-- 现成的交互动效与展示组件参考层
-- 用于补充页面中的高质量局部表现，而不是接管整页设计
-
-使用时机：
-
-- 页面已经有明确结构和视觉方向，但某些模块还缺少表现力
-- 需要更完整的 hero、marquee、spotlight、dock、stack、tilt、reveal 一类局部效果
-- 希望减少自己从零实现展示型交互的成本
-
-它解决的问题：
-
-- 某个局部模块是否还不够“像成品”
-- 是否需要一个更成熟的展示型交互模式
-- 是否能在不重写整页设计语言的前提下，提升局部完成度
-
-注意：
-
-- 不要把 `React Bits` 当成页面模板来源
-- 只能按需抽取适合当前页面的局部模式
-- 使用后仍要回到当前页面的整体设计语言里做统一
-
-### `antd`
-
-定位：
-
-- 复杂业务组件层
-- 用于承载表单、表格、筛选、弹窗、步骤流、上传、分页等标准化交互
-
-使用时机：
-
-- 后台页面
-- 工具页
-- 数据录入页
-- 复杂表单页
-- 需要稳定业务控件时
-
-它解决的问题：
-
-- 是否需要成熟的业务组件而不是自己拼
-- 是否需要更稳定的交互一致性
-- 是否需要更快完成复杂控件搭建
-
-注意：
-
-- `antd` 是按需接入，不是默认依赖
-- 营销页、品牌页、故事页默认不要先上 `antd`
-- 如果用了 `antd`，要控制视觉气质，避免页面退化成默认后台风
-
-## 3. 推荐组合顺序
-
-### 营销页 / 落地页
-
-建议顺序：
-
-1. `references/design/landing.md`
-2. `frontend-design`
-3. `design-taste-frontend`
-4. `tailwind-best-practices`
-5. 按需加 `motion.js`
-6. 若有局部展示模块需要成品级表现，可按需参考 `React Bits`
-7. 若是长滚动叙事，再加 `gsap-scrolltrigger`
-
-### 品牌故事页 / About / 叙事页
-
-建议顺序：
-
-1. `references/design/ppt.md`
-2. `frontend-design`
-3. `design-taste-frontend`
-4. `gsap-scrolltrigger`
-5. `tailwind-best-practices`
-6. 按需补 `motion.js`
-7. 若局部模块需要更强展示效果，可按需引入 `React Bits`
-
-### 产品功能页
-
-建议顺序：
-
-1. `references/design/landing.md`
-2. `design-taste-frontend`
-3. 必要时少量引入 `frontend-design`
-4. `tailwind-best-practices`
-5. 默认优先 `motion.js`
-6. 复杂业务控件按需加 `antd`
-7. 某些展示模块需要更强表现时再少量参考 `React Bits`
-
-原则：
-
-- 功能页默认不要先上 `gsap-scrolltrigger`
-- 先保证结构清晰、信息清楚、CTA 明确
-- `antd` 只在业务控件真的复杂时接入，不要为了省事把普通营销区块也写成后台风
-
-### 演示型 / PPT 感页面
-
-建议顺序：
-
-1. `references/design/ppt.md`
-2. `frontend-design`
-3. `design-taste-frontend`
-4. `gsap-scrolltrigger`
-5. `tailwind-best-practices`
-6. 按需补 `React Bits`
-
-## 4. Step 3 的最小输出要求
-
-在写 `design.md` 前，至少要明确以下内容：
-
-- 当前页面读取了哪些 `references/design/*.md`
-- 本次启用哪些工具
-- 为什么启用这些工具
-- 哪个工具负责结构
-- 哪个工具负责设计语言
-- 哪个工具负责动效
-- 哪个工具负责局部展示增强
-- 是否按需接入 `antd`
-- 哪个工具负责实现规范
-
-推荐写法：
-
-```md
-## Design Inputs
-- References: landing.md
-- Structure Tool: design-taste-frontend
-- Visual Language Tool: frontend-design
-- Motion Tool: motion.js
-- Enhancement Tool: React Bits
-- Business Component Layer: antd (optional)
-- Implementation Rule: tailwind-best-practices
+```
+请使用 imagegen-frontend-web 为我的"AI绘画工具"官网生成3种不同布局的Hero区域参考图，风格偏向科技感。
 ```
 
-如果使用 `gsap-scrolltrigger`，必须额外写清：
+---
 
-- 哪些区块需要滚动驱动
-- 为什么普通 reveal 不够
-- 动效服务的是叙事还是只是装饰
+## 第二阶段：定调与选型
 
-## 5. Anti-Slop 约束
+**目标**：根据项目定位，选定核心风格语言和编码引擎。
 
-无论使用哪些工具，都必须避免：
+### 选择风格子技能
 
-- 默认 AI 紫色渐变
-- 无意义漂浮装饰
-- 没信息含量的假数据
-- 每一屏都一样的卡片网格
-- 无意义的 `SECTION 01`
-- 过量 Eyebrow
-- 没有目标的滚动炫技
+| 项目定位 | 对应子技能 |
+|----------|------------|
+| 高端品牌 | `high-end-visual-design` |
+| 工具类产品 | `minimalist-ui` |
+| 先锋/实验性项目 | `industrial-brutalist-ui` |
 
-## 6. 页面开发前检查
+### 选择编码引擎
 
-进入代码开发前，再确认一遍：
+- **通用场景**：默认用 `design-taste-frontend` (v2)，最均衡，支持三个设计旋钮。
+- **GPT 模型**：切换为 `gpt-taste`，对防止 AI 生成平庸设计有更强约束。
 
-- 已读取对应的 `references/design/*.md`
-- 已选定工具组合
-- 已确定是否需要滚动叙事
-- 已确定是否需要微交互层
-- 已确定是否需要 `React Bits` 做局部增强
-- 已确定是否真的需要接入 `antd`
-- 已确定 Tailwind v4 写法要遵循 `tailwind-best-practices`
+### 设定三个设计旋钮
 
-如果这些没定清楚，不要直接进入实现。
+在所有后续编码请求中固定或微调，形成项目专属"设计指纹"：
 
-## 7. 设计要点
+| 旋钮 | 含义 | 范围 |
+|------|------|------|
+| `DESIGN_VARIANCE` | 布局大胆程度 | 1–10 |
+| `MOTION_INTENSITY` | 动效丰富度 | 1–10 |
+| `VISUAL_DENSITY` | 信息密集度 | 1–10 |
 
-- hero 区域是最直接吸引用户的，参考 `references/design/background.md` 设计，提高页面质量
+---
 
-## 8. 本地素材索引
+## 第三阶段：编码与实现
 
-本地可用图片素材统一记录在 `references/assets.md`，目录位于 `references/assets/`。
+**目标**：将选定风格和参数应用于实际代码生成，完成页面开发。
 
-进入代码开发前，如需使用真实图片，先查阅该索引：
+**步骤**：
 
-- 根据页面类型和区块语义挑选合适素材
-- 禁止直接用外链占位图（如 Lorem Picsum）替代有明确语义的区块图片
-- 人物图（`gril.jpg` / `gril2.jpg` / `gril3.jpg` / `man.jpg`）用于 hero 或证言区块
-- 场景图（`city*.jpg` / `mountain.jpg` / `build.jpg`）用于全宽背景或氛围段落
-- 生活方式图（`sofa.jpg`）用于室内/家居/产品场景
-- 氛围图（`star.jpg`）用于品牌故事、宏叙事、低信息密度段落
+1. **逐页推进**：将项目拆为"首页"、"列表页"、"详情页"等模块，逐个发起请求。每次请求中明确提及风格子技能、编码引擎和旋钮值。
+2. **迭代优化**：通过调整旋钮值微调风格，例如将 `VISUAL_DENSITY` 从 5 降到 2 以增加留白。
 
-详见 → [`references/assets.md`](./assets.md)
+**示例 Prompt**：
+
+```
+使用 design-taste-frontend 引擎，并应用 minimalist-ui 风格。
+设置 DESIGN_VARIANCE=4，MOTION_INTENSITY=6，VISUAL_DENSITY=3。
+基于之前敲定的参考图，为我的 SaaS 产品生成"仪表盘-数据概览"页面的 HTML/CSS 代码。
+```
+
+---
+
+## 第四阶段：审计与交付
+
+**目标**：确保代码质量，处理遗留问题，完成最终交付。
+
+| 场景 | 使用技能 | 说明 |
+|------|----------|------|
+| AI 输出不完整（用"..."偷懒） | `full-output-enforcement` | 强制要求一次性输出所有完整代码 |
+| 维护样式混乱的老系统 | `redesign-existing-projects` | 先审计 UI 问题再重构，比直接重写更稳妥 |
+| 多模块大型项目收尾 | `stitch-design-taste` | 生成结构化 `DESIGN.md`，固化颜色、字体、间距、组件规范 |
+
+---
+
+## 实战路径示例
+
+**场景**：为奢侈家具电商网站做设计
+
+1. **构思**：用 `imagegen-frontend-web` 生成多张布局参考图，选定"大图、留白多"的版本作为基准。
+
+2. **定调**：
+   - 风格：`high-end-visual-design`
+   - 引擎：`design-taste-frontend`
+   - 旋钮：`VARIANCE=6, MOTION=3, DENSITY=2`（营造安静高端的画廊感）
+
+3. **编码**：按"首页 → 产品列表 → 产品详情 → 关于我们"顺序逐模块生成。首页完成后觉得动效太安静，将 `MOTION_INTENSITY` 提升到 5。
+
+4. **交付**：
+   - 用 `full-output-enforcement` 复查，确保无遗留占位符。
+   - 运行 `stitch-design-taste`，输出 `DESIGN.md` 设计规范，作为后续迭代基线。

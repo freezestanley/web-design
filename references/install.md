@@ -4,7 +4,7 @@
 - **重要** 所有安装都在当前workspace
 - 安装流程: 如解析失败请手动安装依赖技能
   - `npx skills add https://github.com/greensock/gsap-skills`
-  - `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`
+  - `npx skills add https://github.com/Leonxlnx/taste-skill`
   - `npx skills add anthropics/skills --skill frontend-design`
   - `npx skills add ofershap/tailwind-best-practices`
   - 修改config.js中`PROJECTS_DIR`改为当前 agent workspace的绝对路径下projects文件夹,如`/home/ubuntu/claw-workspace/projects`
