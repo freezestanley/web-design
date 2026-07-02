@@ -11,7 +11,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
 ## 核心规则
 
-- **强制执行** 禁止context超过80%,应立即执行HANDOFF后使用`/compact`或`/clear`清理上下文,否则上下文会被撑爆,从HANDOFF中恢复并继续任务
+- **强制执行** 禁止context超过70%,应立即停止任务,执行HANDOFF, 使用`/compact`压缩上下文,从HANDOFF中恢复并继续任务,防止上下文被撑爆,
 - 页面相关的新建、修改、编译、预览、发布，都必须走 `web-design`。
 - 禁止修改技术栈（擅自换框架/打包工具），否则破坏项目一致性，脚本和 CI 失效。
 - 禁止使用其他项目模版只允许使用template/scaffold,否则破坏项目一致性，脚本和 CI 失效。
