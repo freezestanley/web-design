@@ -161,7 +161,7 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 开发计划落地文档task.md,禁止放入context,否则容易撑爆上下文
    - task.md只有使用时才能读取
    - 必须将大任务拆分成多个小任务,禁止一次性写完所有代码,否则容易出错
-   - **必须单任务执行** 禁止多个任务同时执行,只允许单任务依次执行
+   - **必须单任务执行** 禁止多个任务同时执行,只允许一次执行一个任务,一次只能写入一个组件
    - 每个任务依次执行，禁止跳过任务,否则容易出错
 7. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
    - 任何情况都禁止移除SSO、路由守卫和鉴权请求头
