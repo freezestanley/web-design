@@ -41,7 +41,7 @@
 
 ### 四、工具返回值瘦身规范
 
-每次工具调用后，agent 必须主动做摘要，不要把原始结果原样留在上下文中：
+**必须执行** 每次工具调用后，agent 必须主动做摘要，禁止把原始结果原样留在上下文中：
 
 | 工具 | 摘要原则 |
 |------|---------|
@@ -52,15 +52,15 @@
 | `edit` | 保留"修改成功 + 变更行数"，diff 详情可丢弃 |
 | 生成的文件或源码 | 5-50K+ | 生成的文件或源码，属于"已用完即可丢弃"的内容，用的时候 read 读取就行 |
 
-开发的源码不需要放入
+必须准守瘦身规范,违反则任务失败,执行HANDOFF正确顺序
 
 ### 五、长任务分段 handoff 示例
 
 以 web-design SOP 为例，每个 gate 阶段完成后检查 context：
-G2 product.md 写完 → product-sync.js 执行完 → handoff
-G4 design.md 写完 → handoff
-G6 开发完成 + build 成功 → audit.md 写完 → handoff
-G8 用户确认后 → 进入 G9 → handoff
+G2 product.md 写完 → product-sync.js 执行完 → handoff正确顺序
+G4 design.md 写完 → handoff正确顺序
+G6 开发完成 + build 成功 → handoff正确顺序 → audit.md 写完 → handoff正确顺序
+G8 用户确认后 → 进入 G9 → handoff正确顺序
 
 **目标：每个 gate 之间的上下文是独立的，不要跨 gate 累积。**
 

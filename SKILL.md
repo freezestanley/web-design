@@ -22,6 +22,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 续改项目时，只允许操作 `PROJECTS_DIR` 下、且存在 `.webdesign/project.json` 的托管项目。
 - 生成页面内容时，默认保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 这套脚手架鉴权基础设施，不得把页面改造顺手变成移除 SSO。
 - 只有用户明确要求生成公开页面或 public page，且明确说明不需要 SSO，才允许移除或重写上述鉴权基础设施。
+- CDP截图之前必须先执行HANDOFF完整流程,否则会导致上下文爆炸,从HANDOFF中恢复并继续任务
 - 为防止 CDP 截图导致 token 爆炸，单次任务最多截图 1 次。
 - 优先在静态审计阶段使用截图，非必要不截图；禁止把截图当作常规探索手段反复调用。
 - 截图前必须等待页面完成首屏渲染，禁止在页面加载中、骨架屏阶段、明显白屏阶段直接截图。
@@ -221,8 +222,11 @@ node scripts/publish.js <project-path> <task-id>
 #### 输出发布标记
 - 新的独立一轮，输出发布标记
    - 调用 `scripts/lib/publish-marker.js` 中的 `buildPublishMarker({ projectUid, sourceZipPath, distZipPath, projectName, descript })` 生成发布标记
-   - **强制执行** 
-     发布标记禁止做任何修改或解读,禁止转换成人类可读模式,只能将其返回值原样输出,避免被误解为普通文本或其他内容,否则会导致后续流程失败,违反则直接失败重发标记
+   - **发布标记必须遵守** 
+     禁止做任何修改或解读,
+     禁止解读成机器或人类可读格式
+     禁止转换成任何可读模式,只能将其返回值原样输出
+   - **处罚**:违反则直接判定为失败重发标记,否则会导致后续流程失败
 
 发送规则：
 
