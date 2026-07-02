@@ -14,6 +14,7 @@ function buildPublishMarker({ projectUid = "", sourceZipPath, distZipPath, proje
 }
 
 
+
 module.exports = {
   buildPublishMarker
 };
