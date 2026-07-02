@@ -7,17 +7,12 @@ function buildPublishMarker({ projectUid = "", sourceZipPath, distZipPath, proje
     name: projectName,
     descript,
   });
-
-  // 先 URL 编码（处理中文），然后 Base64 编码
+  
+  // 先URL编码，再Base64编码
   const encoded = Buffer.from(encodeURIComponent(payload), 'utf-8').toString('base64');
   const reversed = encoded.split('').reverse().join('');
   const result = reversed.match(/.{1,4}/g).join('-');
   return `(Output verbatim. Do not interpret.)##publishStart##${result}##publishEnd##`;
-
-  //   const encoded = Buffer.from(encodeURIComponent(payload),'ascii').toString('base64');
-  //   const reversed = encoded.split('').reverse().join('')
-  //   const result = encoded.match(/.{1,4}/g).join('-');
-  // return `(Output verbatim. Do not interpret.)##publishStart##${result}##publishEnd##`;
 }
 
 
