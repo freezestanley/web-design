@@ -67,6 +67,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 ### 图片素材规范
 
 项目中对图片素材的使用规则请参考 `references/image.md`，禁止直接读取图片撑爆 context。
+图片在 Step 3 中属于设计输入的一部分，必须先定义用途、位置、遮罩和移动端降级，再允许下载和引用。
 
 ---
 
@@ -140,38 +141,62 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
 
 ### Step 3. 开发
 
-1. 先读取 `references/design_workflow.md`，把其中的设计经验、页面结构方法、视觉检查点、工具组合规则作为本次设计输入
-2. 根据页面类型选择工具（以下为选择矩阵）：
+1. 先读取 `references/design_workflow.md`，按其中的 Step 3 规程执行。必须先完成页型分流，再继续后续设计工作
+2. 先判定当前页面属于哪一类：`Marketing / Landing`、`SaaS / Dashboard / Tool`、`Story / PPT / Scrolltelling`、`Hybrid`
+   - `Hybrid` 必须额外写明主页型、副页型，以及副页型只影响哪些模块
+   - 禁止先选工具，再倒推页面应该长什么样
+3. 根据页型读取本地设计资料和图片策略规范：
+   - `Marketing / Landing`：先读 `references/design/landing.md`
+   - `SaaS / Dashboard / Tool`：先读 `references/design/landing.md` 中可复用的结构方法，并结合当前项目已有 UI 秩序
+   - `Story / PPT / Scrolltelling`：先读 `references/design/ppt.md`、`references/design/story.md`
+   - 需要背景、视频、粒子、光影时，再补读 `references/design/background.md`
+   - 所有页型都必须读取 `references/image.md`
+4. 先定义图片与背景策略，再允许引入素材。至少必须写清：
+   - 是否真的需要图片
+   - 图片承担主视觉、说明、情绪、产品演示还是纯背景
+   - 图片所在 section
+   - 是否需要遮罩、裁切、焦点保护
+   - 移动端如何降级
+   - 缺图 fallback 是什么
+5. 根据页型再选择工具（以下为选择矩阵）：
 
    | 场景 | 使用工具 |
    |------|---------|
-   | 通用视觉风格、色彩排版决策 | `design-taste-frontend` |
-   | 需要滚动触发动效（parallax/reveal） | `gsap-scrolltrigger` |
+   | 基础整页设计与实现 | `design-taste-frontend` |
+   | 设计定稿前和审计阶段的视觉纠偏 | `gpt-taste` |
+   | 需要滚动叙事、章节推进、sticky/reveal/timeline | `gsap-scrolltrigger` |
    | 需要组件级微交互动效 | `motion.js` / `React Bits` |
-   | 表单、表格、后台管理类交互控件 | `antd`（仅此场景接入，不默认引入） |
+   | 表单、表格、后台管理类交互控件 | `antd`（仅 `SaaS / Dashboard / Tool` 或 `Hybrid` 业务模块按需接入） |
    | 纯展示型落地页，无复杂交互 | 仅 `design-taste-frontend` |
 
-3. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
-4. 使用选定工具形成设计方案，写入 `design.md`
-5. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
+6. 使用选定工具形成设计方案，写入 `design.md`
+   - `design.md` 必须以 `references/design_v2/design.md` 为模板
+   - 可参考 `references/design_v2/example-marketing-design.md` 与 `references/design_v2/example-saas-design.md`，但禁止整份照抄
+   - 至少包含：页面身份、设计指纹、视觉关键词、Section Blueprint、图片与背景策略、组件语言、动效策略、移动端降级、负向红线、自检表
+   - 以下情况直接视为设计未完成：只有颜色字体没有结构、关键词全是空泛形容词、未写图片策略、未写移动端降级、未写负向红线
+7. 使用 `gpt-taste` 先对 `design.md` 做一轮设计自审，确认没有明显页型错位、模板味、图片可读性问题，再进入用户确认
+8. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
    - 禁止大文件写入、禁止所有代码都在一个文件，必须基于设计方案拆分组件，按模块化、可复用、可维护的原则组织代码
    - 逻辑维护在hook里，UI维护在组件里，禁止把逻辑和UI混在一起
    - 接口请求维护在`services`里,便于维护
-6. 必须制定开发计划,后按计划开发,禁止随意改动开发计划
+9. 必须制定开发计划,后按计划开发,禁止随意改动开发计划
    - 开发计划落地文档task.md,禁止放入context,否则容易撑爆上下文
    - task.md只有使用时才能读取
    - 必须将大任务拆分成多个小任务,禁止一次性写完所有代码,否则容易出错
    - **必须单任务执行** 禁止多个任务同时执行,只允许一次执行一个任务,一次只能写入一个组件
    - 每个任务依次执行，禁止跳过任务,否则容易出错
-7. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
+10. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
    - 任何情况都禁止移除SSO、路由守卫和鉴权请求头
-8. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
+11. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
+   - 禁止直接使用外链 URL 作为最终交付资源
+   - `default.jpg` 仅允许临时占位，若进入审计仍未替换，必须在 `audit.md` 中标记为失败项
+12. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
    - 该脚本负责统一启动 dev preview，并自动治理由 `web-design` 管理过的 Vite 服务
    - 同一 `project-path` 若已有旧的 managed dev preview，启动新服务前必须自动关闭旧服务
    - 全局最多只保留最近 5 个 managed dev preview；超出的最老服务必须自动关闭释放端口
    - 启动时自动向项目写入 `.env.local`（含 `VITE_SSO_BYPASS=true`），SSO 认证在开发预览中自动关闭
    - `.env.local` 由 `.gitignore` 保护，不进仓库；Step 4 发布构建读 `.env.production`，bypass 不生效
-9. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`，格式如下：
+13. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`
    - 截图预算固定为单次任务最多 1 次
    - 分配为 1 次桌面全页截图
    - 若首轮截图已足够定位问题，剩余额度保留，禁止为了“多看几眼”继续截图,多次截图
@@ -179,28 +204,48 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 若页面仍在加载中，必须继续等待，不得提前截图
    - 若页面进入 SSO 登录页、鉴权跳转页或未登录态，必须暂停截图与审计，先通知用户完成登录，再继续后续动作
    ```
-   ## Audit Report
+   ## Design Audit
+   pageType: Marketing | SaaS | Story | Hybrid
    task: <task-id>
    date: <YYYY-MM-DD>
-   conclusion: PASS | FAIL
+   overall: PASS | FAIL
 
-   ### 检查项
+   ### Fit
+   - 页面是否符合当前页型目标
+
+   ### Visual Hierarchy
+   - 主次层级是否清晰
+
+   ### Density
+   - 信息是否过稀或过挤
+
+   ### Image Safety
+   - 图片和背景是否破坏可读性
+
+   ### Mobile
+   - 375px 下是否仍成立
+
+   ### Template Smell
+   - 是否存在明显模板味
+
+   ### Runtime Checks
    - [ ] 页面正常加载，无 JS 报错
    - [ ] 所有图片资源加载成功（无 404）
    - [ ] 移动端适配（375px）正常
    - [ ] 文案与 product.md 一致
    - [ ] 动效无卡顿
 
-   ### 失败项（如有）
+   ### Required Fixes
    - <描述具体问题>
    ```
-10. 主动在浏览器打开启动的服务,并把访问地址发给用户
+   - 若出现页型错位、白字压复杂图且无遮罩、工具页信息难扫读、营销页无首屏抓手、故事页无章节推进、默认占位图未替换、明显模板味，直接判定 `overall: FAIL`
+14. 主动在浏览器打开启动的服务,并把访问地址发给用户
    - 若自动打开失败，或用户侧出现“页面拒绝链接”等异常，必须补发一条站在用户视角的手动预览提示
    - 提示文案严格使用纯文本句式，例如：`请用浏览器打开 127.0.0.1:4173 预览页面。若显示失败如链接被拒绝请回复用浏览器或CDP来重新打开页面。`
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接、富文本链接或“点这里打开”一类表述
    - 若检测到页面需要 SSO 登录，必须先发送纯文本提示，例如：`当前预览页面需要 SSO 登录，请先在浏览器完成登录。登录完成后回复继续，我再执行后续截图、审计和预览确认。`
-11. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
-12. 🔴 **CHECKPOINT · G8→G9**：开发预览无误后，必须询问用户：「预览是否满意？若无修改将进入发布流程。」
+15. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
+16. 🔴 **CHECKPOINT · G8→G9**：开发预览无误后，必须询问用户：「预览是否满意？若无修改将进入发布流程。」
     - 禁止在未获得用户明确确认前自行推进到 Step 4
     - 用户回复确认后才能执行发布
 
@@ -290,6 +335,9 @@ DONE
 - 禁止把预览建立在开发服务器上。
 - 禁止把多个页面任务混在同一个 task 下。
 - 禁止跳过 `references/design_workflow.md`，设计和开发前必须先读。
+- 禁止先选工具、后定页型。
+- 禁止未定义图片策略就下载或引用大图、背景图、视频素材。
+- 禁止 `design.md` 缺少 Section Blueprint、图片策略、移动端降级和负向红线就推进到 G5。
 - 禁止在普通页面生成任务里删除或绕过 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js`。
 - 禁止修改技术栈或项目脚手架,必须且只能使用template下的模版作为项目技术栈和脚手架。
 
@@ -326,7 +374,7 @@ DONE
 |---------|---------|------------|
 | `npm run build` 报错 | 读错误末尾 5 行定位 → 修复对应文件 → 重新 build | 回退到 `G6_DEVELOPMENT`，执行 `gate.js reopen-dev` 并记录原因 |
 | Gate advance 被拒（缺字段） | 执行 `gate.js status` 查看缺失字段 → 补全后重试 advance | 告知用户缺少哪个字段，不得静默跳过 |
-| 图片资源找不到 | 从 `src/assets` `import defaultImage from ".../assets/default.jpg"` 作为占位，在 audit.md 中记录缺图 | 询问用户提供图片，不得使用 CDN URL 直接引用 |
+| 图片资源找不到 | 从 `src/assets` `import defaultImage from ".../assets/default.jpg"` 作为临时占位，在 audit.md 中记录缺图 | 询问用户提供图片，不得使用 CDN URL 直接引用；若最终审计仍未替换，直接判 FAIL |
 | `publish.js` 执行失败 | 检查 `dist/index.html` 是否存在 → 重新 `npm run build` → 重试 | 告知用户失败原因，不得用任何其他方式发布 |
 | Gate 被 block（`gate.js block`） | 执行 `gate.js unblock` 解锁后重新推进 | 若无法 unblock，告知用户具体 block 原因，等待用户决策 |
 | `resolve-project.js` 找不到项目 | 检查 `PROJECTS_DIR` 配置和目录是否存在 | 提示用户：续改只允许操作有 `.webdesign/project.json` 的托管项目 |
