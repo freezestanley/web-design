@@ -1,0 +1,9 @@
+{
+  "name": "web-design-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scripts for web-design plugin",
+  "dependencies": {
+    "crypto-js": "^4.2.0"
+  }
+}

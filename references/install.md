@@ -12,5 +12,6 @@
   - 将`HEARTBEAT.md`追加到当前workspace下的`HEARTBEAT.md`内
   - 将context管理规则追加到当前workspace下的`AGENTS.md`内,追加到底部,禁止全量覆盖以免原有内容丢失
     context管理规则: `references/context.md`,防止上下文爆炸,直接卡死上下文
+  - 移动到`scripts`目录下,基于`packgae.json`安装 node 依赖
   - 执行先执行 HANDOFF 保存状态，然后 /compact释放上下文
   - 执行`gateway restart`重启gateway,使配置生效
