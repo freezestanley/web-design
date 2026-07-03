@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Control Plugin Preview</title>
+    <link rel="stylesheet" href="/__plugin-dist/plugin.css" />
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f8fafc, #dbeafe);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+
+      .preview-page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 48px 24px;
+      }
+
+      .preview-header {
+        margin-bottom: 24px;
+      }
+
+      .preview-card {
+        padding: 24px;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.75);
+        box-shadow: 0 16px 50px rgba(15, 23, 42, 0.1);
+        backdrop-filter: blur(12px);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="preview-page">
+      <header class="preview-header">
+        <h1>Control Plugin Preview</h1>
+        <p>Standalone preview for visual editing. Refresh after editing source files.</p>
+      </header>
+      <section class="preview-card">
+        <div id="preview-root"></div>
+      </section>
+    </main>
+    <script src="/__plugin-dist/plugin.js"></script>
+    <script src="/preview/preview.js"></script>
+  </body>
+</html>

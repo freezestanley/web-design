@@ -1,0 +1,67 @@
+#__webdesign_menu.wdg-shell {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483647;
+  display: grid;
+  gap: 10px;
+  min-width: 220px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+#__webdesign_menu .wdg-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+#__webdesign_menu .wdg-field {
+  display: grid;
+  gap: 4px;
+}
+
+#__webdesign_menu .wdg-field-label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+#__webdesign_menu select,
+#__webdesign_menu .wdg-button {
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+}
+
+#__webdesign_menu select {
+  padding: 0 10px;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+#__webdesign_menu .wdg-button {
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#__webdesign_menu .wdg-status {
+  min-height: 16px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+#__webdesign_menu .wdg-status[data-tone="error"] {
+  color: #fca5a5;
+  opacity: 1;
+}
+
+#__webdesign_menu .wdg-status[data-tone="success"] {
+  color: #86efac;
+  opacity: 1;
+}

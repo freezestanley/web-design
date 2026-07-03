@@ -1,0 +1,28 @@
+{
+  "owner": "za-stanlexu",
+  "appName": "order-list",
+  "appNo": "PROJ27d9f2a63696ed7a",
+  "version": "v20260629094455-dca2da",
+  "description": "order-list 首页 v1.0",
+  "uploadedBy": "za-stanlexu",
+  "publishedAt": 1782726295823,
+  "manifest": {
+    "schemaVersion": "1.0",
+    "projectId": "PROJ03e5b5dbcd2d4da0",
+    "name": "展示订单列表（支持按订单号/客户名/状态筛选分页）和应用项目概览列表（支持状态/关键词筛选分页），两组数据分区展示在同一页面",
+    "entry": "dist/index.html",
+    "owner": "",
+    "proxy": {
+      "routes": [
+        {
+          "prefix": "/app-center",
+          "upstreamOrigin": "http://4335314-za-aigc-harness-studio.test.za.biz"
+        },
+        {
+          "prefix": "/orders",
+          "upstreamOrigin": "http://localhost:3000"
+        }
+      ]
+    }
+  }
+}

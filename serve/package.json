@@ -1,0 +1,14 @@
+{
+  "name": "web-design-serve-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-app static gateway with runtime menu injection and proxy support",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node plugins/web-design-control-plugin/scripts/build-plugin.js",
+    "start": "node server.js",
+    "dev": "node plugins/web-design-control-plugin/scripts/preview-server.js",
+    "preview": "node plugins/web-design-control-plugin/scripts/preview-server.js",
+    "test": "node --test gateway.test.js plugin-build.test.js serve-config.test.js"
+  }
+}

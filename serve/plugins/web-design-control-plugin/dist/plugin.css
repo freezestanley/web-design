@@ -1,0 +1,95 @@
+.wdp-root {
+  box-sizing: border-box;
+}
+
+.wdp-root *,
+.wdp-root *::before,
+.wdp-root *::after {
+  box-sizing: inherit;
+}
+
+.wdp-root--floating {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 2147483647;
+}
+
+.wdp-root--header {
+  width: 100%;
+}
+
+.wdp-shell {
+  display: grid;
+  gap: 10px;
+  min-width: 220px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #f8fafc;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+.wdp-root--header .wdp-shell {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
+  align-items: end;
+}
+
+.wdp-root--header .wdp-title {
+  grid-column: 1 / -1;
+}
+
+.wdp-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.wdp-field {
+  display: grid;
+  gap: 4px;
+}
+
+.wdp-field-label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.wdp-select,
+.wdp-button {
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+}
+
+.wdp-select {
+  padding: 0 10px;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.wdp-button {
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wdp-status {
+  min-height: 16px;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.wdp-status[data-tone="error"] {
+  color: #fca5a5;
+  opacity: 1;
+}
+
+.wdp-status[data-tone="success"] {
+  color: #86efac;
+  opacity: 1;
+}

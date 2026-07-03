@@ -1,0 +1,8 @@
+{
+  "name": "web-design-control-plugin",
+  "version": "1.0.0",
+  "js": "plugin.js",
+  "css": "plugin.css",
+  "global": "WebDesignControlPlugin",
+  "sourceManifest": "src/plugin.manifest.json"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "web-design-control-plugin",
+  "version": "1.0.0",
+  "global": "WebDesignControlPlugin",
+  "js": [
+    "src/plugin/core.js",
+    "src/plugin/api.js",
+    "src/plugin/view.js",
+    "src/plugin/entry.js"
+  ],
+  "css": [
+    "src/styles/plugin.css"
+  ]
+}
