@@ -53,7 +53,7 @@
 
 图片素材与背景图的使用规则，统一读取：
 
-- `references/image.md`
+- 读取图片资源获取规则`references/image.md`
 
 ### 3. 先定图片策略，再定版式
 

@@ -213,6 +213,10 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接、富文本链接或”点这里打开”一类表述
    - 若检测到页面需要 SSO 登录，必须先发送纯文本提示，例如：`当前预览页面需要 SSO 登录，请先在浏览器完成登录。登录完成后回复继续，我再执行后续截图、审计和预览确认。`
 15. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
+    - 执行 `reopen-dev` 后 Gate 回退到 `G6_DEVELOPMENT`
+    - **必须重新完整走完 G6→G7（静态审计 PASS）→G8（用户预览确认）→G9，才允许执行 `publish.js`**
+    - 任何代码修改（包括 `src/`、`scripts/`、配置文件、组件）都视为重新进入 G6，禁止跳过审计和预览直接发布
+    - 🔴 禁止在 Gate < G9_PUBLISH_READY 时调用 `publish.js` 或输出发布标记
 16. 🔴 **CHECKPOINT · G8→G9**：必须在用户已收到访问地址（Step 14 完成）之后，才能发出询问：「预览是否满意？若无修改将进入发布流程。」
     - 禁止在 Step 14 未完成（未执行 open 且未发出纯文本地址）的情况下发出此询问
     - 用户回复确认表示"已看过页面且满意"，若用户仅回复模糊词（如"好""确认""继续"）且未明确说明已预览，必须追问：「请确认您已在浏览器中查看过页面。」
@@ -227,13 +231,24 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
 node scripts/publish.js <project-path> <task-id>
 ```
 
-发布时必须：
+**发布动作的完整定义（不多不少）：**
 
-- 再次执行 `npm run build`
-- 从 `.webdesign/manifest.json` 生成项目根目录 `manifest.json`
-- 打出源码 `project.zip`
-- 打出 zip 包根目录包含 `manifest.json` 和 `dist` 的 `dist.zip`
-- 回写 `.webdesign/project.json`
+1. 再次执行 `npm run build`
+2. 从 `.webdesign/manifest.json` 生成项目根目录 `manifest.json`
+3. 打出源码 `project.zip`
+4. 打出 zip 包根目录包含 `manifest.json` 和 `dist` 的 `dist.zip`
+5. 回写 `.webdesign/project.json`
+6. 输出发布标记
+
+**发布标记输出成功 = 发布动作完成并结束。**
+
+🔴 **禁止在发布标记输出后追加任何动作**，包括但不限于：
+- git commit / git push / git tag
+- 文件复制、上传、部署
+- 任何"发布后续处理"
+- 任何说明、总结、提示语
+
+上述动作均属于错误行为，发布动作在发布标记输出后即告完成，禁止自行扩展。
 
 #### 输出发布标记
 - 新的独立一轮，输出发布标记
@@ -283,6 +298,7 @@ DONE
 - `G8 -> G9` 前置条件：① Step 14 已完成（open 已执行或纯文本地址已发送）；② 用户明确确认已在浏览器中查看过页面且无修改意见；禁止 agent 自行推进
 - `G9 -> DONE` 禁止用普通 `advance`，只能执行 `publish.js`
 - 用户预览后提修改意见时，必须 `reopen-dev` 回到 `G6_DEVELOPMENT`
+- **强制**：任何文件修改（`src/`、`scripts/`、`config.js`、组件、配置）发生后，若当前 Gate ≥ G7，必须立即执行 `reopen-dev` 退回 `G6_DEVELOPMENT`，重新触发 G7 审计→G8 预览→G9 流程，禁止在修改后跳过审计直接推进到发布
 
 ## 脚本入口
 
