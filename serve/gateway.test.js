@@ -12,6 +12,10 @@ function writeJson(filePath, value) {
   fs.writeFileSync(filePath, JSON.stringify(value, null, 2));
 }
 
+function withCookie(response) {
+  return response.headers.get("set-cookie") || "";
+}
+
 function createProject(projectsDir, options = {}) {
   const versionDir = path.join(projectsDir, options.version || "v202607030001-demo");
   const appId = options.appId || "APP_DEMO_001";
@@ -36,6 +40,7 @@ function createProject(projectsDir, options = {}) {
       ].join("\n")
   );
   fs.writeFileSync(path.join(versionDir, "assets", "main.js"), "console.log('demo');\n");
+  fs.writeFileSync(path.join(versionDir, "assets", "main.css"), "body{background:#fff;}\n");
   writeJson(path.join(versionDir, "_meta.json"), {
     appName: options.appName || "demo-app",
     appNo: appId,
@@ -236,6 +241,407 @@ test("plugin submit returns 400 for invalid json payloads", async () => {
   }
 });
 
+test("share preview forwards ticket login into a tokenized preview url for iframe-safe bootstrapping", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-auth-share-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_AUTH", appName: "auth-app" });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      useMockSso: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: "https://nsso-test.zhonganinfo.com"
+    }
+  });
+
+  try {
+    const anonymousResponse = await fetch(`${gateway.url}/apps/APP_AUTH/`, {
+      redirect: "manual"
+    });
+    assert.equal(anonymousResponse.status, 302);
+    assert.match(String(anonymousResponse.headers.get("location")), /^https:\/\/nsso-test\.zhonganinfo\.com\/login\?/);
+
+    const ticketResponse = await fetch(`${gateway.url}/apps/APP_AUTH/?ticket=ticket-za-lisi`, {
+      redirect: "manual"
+    });
+    assert.equal(ticketResponse.status, 302);
+    assert.equal(ticketResponse.headers.get("location"), "/apps/APP_AUTH/?token=session-za-lisi");
+    assert.match(withCookie(ticketResponse), /ATLANTIS_SESSION_ID=session-za-lisi/);
+    assert.match(withCookie(ticketResponse), /unsafeSessionId=session-za-lisi/);
+
+    const shellResponse = await fetch(`${gateway.url}/apps/APP_AUTH/?token=session-za-lisi`);
+    const shellHtml = await shellResponse.text();
+    assert.equal(shellResponse.status, 200);
+    assert.match(shellHtml, /unsafeSessionId/);
+    assert.match(shellHtml, /session-za-lisi/);
+    assert.match(shellHtml, /\/apps\/APP_AUTH\/content\/\?token=session-za-lisi/);
+
+    const childHtmlResponse = await fetch(`${gateway.url}/apps/APP_AUTH/content/?token=session-za-lisi`);
+    const childHtml = await childHtmlResponse.text();
+    assert.equal(childHtmlResponse.status, 200);
+    assert.match(childHtml, /unsafeSessionId/);
+    assert.match(childHtml, /session-za-lisi/);
+  } finally {
+    await gateway.close();
+  }
+});
+
+test("share preview redirects back to SSO when an existing preview session is invalid", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-auth-invalid-session-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_INVALID_SESSION", appName: "invalid-session-app" });
+
+  const ssoUpstream = await createUpstreamServer((req, res) => {
+    if (String(req.url).startsWith("/userinfo")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ success: false, code: 401, message: "Unauthorized" }));
+      return;
+    }
+
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "not_found" }));
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: ssoUpstream.url,
+      useMockSso: false
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/apps/APP_INVALID_SESSION/`, {
+      redirect: "manual",
+      headers: {
+        cookie: "ATLANTIS_SESSION_ID=expired-session"
+      }
+    });
+
+    assert.equal(response.status, 302);
+    assert.match(String(response.headers.get("location")), /^http:\/\/127\.0\.0\.1:\d+\/login\?/);
+  } finally {
+    await gateway.close();
+    await ssoUpstream.close();
+  }
+});
+
+test("share preview validates session against userinfo without re-encoding opaque session tokens", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-auth-userinfo-query-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_USERINFO_QUERY", appName: "userinfo-query-app" });
+
+  const ssoUpstream = await createUpstreamServer((req, res) => {
+    if (String(req.url).startsWith("/userinfo")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ success: true, result: { userName: "za-lisi" } }));
+      return;
+    }
+
+    res.writeHead(404, { "content-type": "application/json" });
+    res.end(JSON.stringify({ error: "not_found" }));
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: ssoUpstream.url,
+      useMockSso: false
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/apps/APP_USERINFO_QUERY/`, {
+      redirect: "manual",
+      headers: {
+        cookie: "ATLANTIS_SESSION_ID=opaque%25253D"
+      }
+    });
+
+    assert.equal(response.status, 200);
+    assert.equal(ssoUpstream.requests.length, 1);
+    assert.match(ssoUpstream.requests[0].url, /\/userinfo\?service=za-open-bot&encryptedSession=opaque=$/);
+    assert.equal(ssoUpstream.requests[0].headers["x-usercenter-session"], "opaque=");
+  } finally {
+    await gateway.close();
+    await ssoUpstream.close();
+  }
+});
+
+test("app proxy forwards preview session header to upstream when authenticated", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-auth-proxy-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+
+  const appUpstream = await createUpstreamServer((req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  });
+
+  createProject(projectsDir, {
+    appId: "APP_AUTH_PROXY",
+    routes: [
+      {
+        prefix: "/orders",
+        upstreamOrigin: appUpstream.url
+      }
+    ]
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      useMockSso: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: "https://nsso-test.zhonganinfo.com"
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/apps/APP_AUTH_PROXY/content/orders/list`, {
+      headers: {
+        cookie: "ATLANTIS_SESSION_ID=session-za-lisi"
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(appUpstream.requests.length, 1);
+    assert.equal(appUpstream.requests[0].headers["x-usercenter-session"], "session-za-lisi");
+    assert.equal(appUpstream.requests[0].headers["x-service-name"], "za-open-bot");
+  } finally {
+    await gateway.close();
+    await appUpstream.close();
+  }
+});
+
+test("app proxy accepts x-usercenter-session when iframe cookies are unavailable", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-auth-header-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+
+  const appUpstream = await createUpstreamServer((req, res) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  });
+
+  createProject(projectsDir, {
+    appId: "APP_AUTH_HEADER",
+    routes: [
+      {
+        prefix: "/orders",
+        upstreamOrigin: appUpstream.url
+      }
+    ]
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      useMockSso: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: "https://nsso-test.zhonganinfo.com"
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/apps/APP_AUTH_HEADER/content/orders/list`, {
+      headers: {
+        "x-usercenter-session": "session-za-lisi"
+      }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(appUpstream.requests.length, 1);
+    assert.equal(appUpstream.requests[0].headers["x-usercenter-session"], "session-za-lisi");
+    assert.equal(appUpstream.requests[0].headers["x-service-name"], "za-open-bot");
+  } finally {
+    await gateway.close();
+    await appUpstream.close();
+  }
+});
+
+test("plugin control proxy forwards preview session header to upstream when authenticated", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-auth-control-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_AUTH_CONTROL", appName: "auth-control-app" });
+
+  const controlUpstream = await createUpstreamServer((req, res, body) => {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true, body }));
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      useMockSso: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: "https://nsso-test.zhonganinfo.com"
+    },
+    controlProxy: {
+      submit: {
+        upstreamOrigin: controlUpstream.url,
+        path: "/submit-config"
+      }
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/__plugin/submit`, {
+      method: "POST",
+      headers: {
+        cookie: "ATLANTIS_SESSION_ID=session-za-lisi",
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({ env: "prod" })
+    });
+    assert.equal(response.status, 200);
+    assert.equal(controlUpstream.requests.length, 1);
+    assert.equal(controlUpstream.requests[0].headers["x-usercenter-session"], "session-za-lisi");
+    assert.equal(controlUpstream.requests[0].headers["x-service-name"], "za-open-bot");
+  } finally {
+    await gateway.close();
+    await controlUpstream.close();
+  }
+});
+
+test("dev preview route redirects authenticated users to the managed vite preview", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-dev-preview-"));
+  const projectsDir = path.join(rootDir, "projects");
+  const registryPath = path.join(rootDir, "registry.json");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  writeJson(registryPath, {
+    services: [
+      {
+        pid: process.pid,
+        port: 4100,
+        url: "http://127.0.0.1:4100",
+        projectPath: "/tmp/project-alpha",
+        command: "npm run dev",
+        startedAt: "2026-07-04T09:00:00.000Z"
+      }
+    ]
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      useMockSso: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: "https://nsso-test.zhonganinfo.com",
+      devPreviewRegistryPath: registryPath
+    }
+  });
+
+  try {
+    const anonymousResponse = await fetch(`${gateway.url}/preview/dev/project-alpha/`, {
+      redirect: "manual"
+    });
+    assert.equal(anonymousResponse.status, 302);
+    assert.match(String(anonymousResponse.headers.get("location")), /^https:\/\/nsso-test\.zhonganinfo\.com\/login\?/);
+
+    const ticketResponse = await fetch(`${gateway.url}/preview/dev/project-alpha/?ticket=ticket-za-zhangchong`, {
+      redirect: "manual"
+    });
+    assert.equal(ticketResponse.status, 302);
+    assert.equal(ticketResponse.headers.get("location"), "/preview/dev/project-alpha/");
+    assert.match(withCookie(ticketResponse), /ATLANTIS_SESSION_ID=session-za-zhangchong/);
+    assert.match(withCookie(ticketResponse), /unsafeSessionId=session-za-zhangchong/);
+
+    const redirectResponse = await fetch(`${gateway.url}/preview/dev/project-alpha/`, {
+      redirect: "manual",
+      headers: {
+        cookie: withCookie(ticketResponse)
+      }
+    });
+    assert.equal(redirectResponse.status, 302);
+    assert.equal(redirectResponse.headers.get("location"), "http://127.0.0.1:4100/");
+  } finally {
+    await gateway.close();
+  }
+});
+
+test("dev preview route rejects stale registry entries instead of redirecting to dead services", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-dev-preview-stale-"));
+  const projectsDir = path.join(rootDir, "projects");
+  const registryPath = path.join(rootDir, "registry.json");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  writeJson(registryPath, {
+    services: [
+      {
+        pid: 999999,
+        port: 4101,
+        url: "http://127.0.0.1:4101",
+        projectPath: "/tmp/project-stale",
+        command: "npm run dev",
+        startedAt: "2026-07-04T09:00:00.000Z"
+      }
+    ]
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      useMockSso: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: "https://nsso-test.zhonganinfo.com",
+      devPreviewRegistryPath: registryPath
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/preview/dev/project-stale/`, {
+      redirect: "manual",
+      headers: {
+        cookie: "ATLANTIS_SESSION_ID=session-za-lisi"
+      }
+    });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), {
+      error: "dev_preview_not_found",
+      projectName: "project-stale"
+    });
+  } finally {
+    await gateway.close();
+  }
+});
+
 test("gateway serves a shell page with header plugin, iframe content routes, proxies app routes, and forwards control submit", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-"));
   const projectsDir = path.join(rootDir, "projects");
@@ -263,6 +669,20 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
 
   const projectDir = createProject(projectsDir, {
     appId: "APP_PROXY",
+    indexHtml: [
+      "<!doctype html>",
+      "<html>",
+      "  <head>",
+      "    <meta charset=\"utf-8\" />",
+      "    <title>Demo App</title>",
+      "    <script type=\"module\" src=\"/assets/main.js\"></script>",
+      "    <link rel=\"stylesheet\" href=\"/assets/main.css\" />",
+      "  </head>",
+      "  <body>",
+      "    <div id=\"root\"></div>",
+      "  </body>",
+      "</html>"
+    ].join("\n"),
     routes: [
       {
         prefix: "/orders",
@@ -305,7 +725,7 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
   });
 
   try {
-    const shellResponse = await fetch(`${gateway.url}/apps/APP_PROXY/`);
+    const shellResponse = await fetch(`${gateway.url}/apps/APP_PROXY/?locale=zh_CN&token=one-time-token`);
     const shellHtml = await shellResponse.text();
 
     assert.equal(shellResponse.status, 200);
@@ -314,7 +734,8 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
     assert.match(shellHtml, /__plugin-dist\/plugin\.css/);
     assert.match(shellHtml, /__runtime\/plugin-bridge\.js/);
     assert.match(shellHtml, /iframe/);
-    assert.match(shellHtml, /\/apps\/APP_PROXY\/content\//);
+    assert.match(shellHtml, /\/apps\/APP_PROXY\/content\/\?locale=zh_CN/);
+    assert.doesNotMatch(shellHtml, /one-time-token/);
     assert.match(shellHtml, /__WEB_DESIGN_GATEWAY__/);
 
     const diskHtml = fs.readFileSync(path.join(projectDir, "index.html"), "utf8");
@@ -326,6 +747,10 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
     assert.doesNotMatch(childHtml, /__plugin-dist\/plugin\.js/);
     assert.doesNotMatch(childHtml, /__runtime\/plugin-bridge\.js/);
     assert.match(childHtml, /\/apps\/APP_PROXY\/content\//);
+    assert.match(childHtml, /src="\/apps\/APP_PROXY\/content\/assets\/main\.js"/);
+    assert.match(childHtml, /<base href="\/apps\/APP_PROXY\/content\/">/);
+    assert.match(childHtml, /window\.__BASENAME__="\/apps\/APP_PROXY\/content\/"/);
+    assert.match(childHtml, /window\.__PREVIEW_SSO_HOST__="https:\/\/nsso-test\.zhonganinfo\.com"/);
 
     const assetResponse = await fetch(`${gateway.url}/apps/APP_PROXY/content/assets/main.js`);
     const assetText = await assetResponse.text();
@@ -338,7 +763,7 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
     assert.match(spaHtml, /\/apps\/APP_PROXY\/content\//);
     assert.doesNotMatch(spaHtml, /Shared Control/);
 
-    const proxyResponse = await fetch(`${gateway.url}/apps/APP_PROXY/content/orders/list?status=open`);
+    const proxyResponse = await fetch(`${gateway.url}/apps/APP_PROXY/content/api/orders/list?status=open`);
     const proxyJson = await proxyResponse.json();
     assert.equal(proxyResponse.status, 200);
     assert.deepEqual(proxyJson, {

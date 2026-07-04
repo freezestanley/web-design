@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0",
+  "projectId": "PROJ0b04417981e917df",
+  "name": "Good Morning 清晨问候页，温暖治愈风格，纯静态展示",
+  "entry": "dist/index.html",
+  "owner": "",
+  "proxy": {
+    "routes": [
+      {
+        "prefix": "/openapi",
+        "upstreamOrigin": "http://4335314-za-aigc-harness-studio.test.za.biz"
+      }
+    ]
+  }
+}

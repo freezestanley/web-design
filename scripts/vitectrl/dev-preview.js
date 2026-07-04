@@ -18,7 +18,7 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === "--registry" || arg === "--max-services") {
+    if (arg === "--registry" || arg === "--max-services" || arg === "--bypass") {
       options[arg.slice(2)] = argv[index + 1] || "";
       index += 1;
       continue;
@@ -33,12 +33,17 @@ function parseArgs(argv) {
   };
 }
 
+function buildPreviewGatewayUrl(projectPath, previewGatewayOrigin = process.env.WEB_DESIGN_PREVIEW_GATEWAY_ORIGIN || "http://127.0.0.1:4173") {
+  return `${previewGatewayOrigin}/preview/dev/${path.basename(path.resolve(projectPath))}/`;
+}
+
 async function main() {
   const { command, projectPath, options } = parseArgs(process.argv.slice(2));
   const registryPath = options.registry
     ? path.resolve(options.registry)
     : undefined;
   const maxServices = options["max-services"] ? Number(options["max-services"]) : 5;
+  const bypassAuth = options.bypass === "" ? true : options.bypass !== "false";
 
   if (!command) {
     fail("Usage: node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path] [--registry path] [--max-services 5]");
@@ -52,9 +57,19 @@ async function main() {
       const result = await startManagedPreview({
         registryPath,
         projectPath: path.resolve(projectPath),
+        bypassAuth,
         maxServices
       });
-      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      process.stdout.write(
+        `${JSON.stringify(
+          {
+            ...result,
+            previewGatewayUrl: buildPreviewGatewayUrl(projectPath)
+          },
+          null,
+          2
+        )}\n`
+      );
       return;
     }
     case "status": {
@@ -72,6 +87,13 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  fail(error.message);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    fail(error.message);
+  });
+}
+
+module.exports = {
+  buildPreviewGatewayUrl,
+  parseArgs
+};

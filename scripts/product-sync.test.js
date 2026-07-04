@@ -67,7 +67,17 @@ function readManifest(projectPath) {
   );
 }
 
-test("product-sync marks no-api products and keeps proxy routes empty", () => {
+function withDefaultAuthRoute(routes) {
+  return [
+    ...routes,
+    {
+      prefix: "/openapi",
+      upstreamOrigin: "http://4335314-za-aigc-harness-studio.test.za.biz"
+    }
+  ];
+}
+
+test("product-sync marks no-api products and preserves default auth proxy route", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-product-sync-"));
   const { projectPath, taskId } = initProject(tempDir);
 
@@ -110,7 +120,12 @@ none
   assert.deepEqual(workflow.apiState.routes, []);
   assert.equal(readManifest(projectPath).projectId, "PROJaabbccddeeff0011");
   assert.equal(readManifest(projectPath).name, "Demo project");
-  assert.deepEqual(readManifest(projectPath).proxy.routes, []);
+  assert.deepEqual(readManifest(projectPath).proxy.routes, [
+    {
+      prefix: "/openapi",
+      upstreamOrigin: "http://4335314-za-aigc-harness-studio.test.za.biz"
+    }
+  ]);
   assert.equal(gateCommand(["advance", projectPath, taskId]).status, 0);
   assert.equal(
     gateCommand(["advance", projectPath, taskId, "--confirm", "需求确认通过"]).status,
@@ -162,7 +177,7 @@ provided
     { prefix: "/user-center", upstreamOrigin: "http://api.example.com" },
     { prefix: "/app-center", upstreamOrigin: "http://api.example.com" }
   ]);
-  assert.deepEqual(readManifest(projectPath).proxy.routes, workflow.apiState.routes);
+  assert.deepEqual(readManifest(projectPath).proxy.routes, withDefaultAuthRoute(workflow.apiState.routes));
   assert.equal(gateCommand(["advance", projectPath, taskId]).status, 0);
   assert.equal(
     gateCommand(["advance", projectPath, taskId, "--confirm", "需求确认通过"]).status,
@@ -257,5 +272,5 @@ provided
     { prefix: "/user-center", upstreamOrigin: "http://api-b.example.com" },
     { prefix: "/app-center", upstreamOrigin: "http://api-a.example.com" }
   ]);
-  assert.deepEqual(readManifest(projectPath).proxy.routes, workflow.apiState.routes);
+  assert.deepEqual(readManifest(projectPath).proxy.routes, withDefaultAuthRoute(workflow.apiState.routes));
 });

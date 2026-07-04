@@ -4,30 +4,42 @@ const { spawn } = require("node:child_process");
 const { readRegistry, writeRegistry, DEFAULT_REGISTRY_PATH } = require("./registry");
 const { findFreePort, isProcessAlive, terminateProcess, waitForPort } = require("./process");
 
+function upsertEnvLine(content, key, value) {
+  const line = `${key}=${value}`;
+  const pattern = new RegExp(`^${key}=.*$`, "m");
+  if (pattern.test(content)) {
+    return content.replace(pattern, line);
+  }
+
+  const separator = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
+  return `${content}${separator}${line}\n`;
+}
+
 /**
- * 确保项目 .env.local 包含 VITE_SSO_BYPASS=true
- * 开发预览期间自动关闭 SSO，发布构建读 .env.production，不受影响
+ * 同步项目 .env.local 中的开发预览变量。
+ * 默认 VITE_SSO_BYPASS=true；显式传 false 时必须覆盖旧值，避免历史残留污染调试。
  */
-function ensureDevEnvLocal(projectPath) {
+function ensureDevEnvLocal(projectPath, { bypassAuth = true } = {}) {
   const envLocalPath = path.join(projectPath, ".env.local");
-  const bypassLine = "VITE_SSO_BYPASS=true";
+  const bypassValue = bypassAuth ? "true" : "false";
 
   let content = "";
   if (fs.existsSync(envLocalPath)) {
     content = fs.readFileSync(envLocalPath, "utf8");
-    if (content.includes("VITE_SSO_BYPASS=")) return;
   }
 
-  const separator = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
   const proxyHint = [
     "",
     "# 开发期接口代理（格式：VITE_DEV_PROXY_<KEY>=<manifest prefix>|<上游 origin>）",
     "# 示例：VITE_DEV_PROXY_USER=/user|https://user-service.example.com",
   ].join("\n");
 
+  const nextContent = upsertEnvLine(content, "VITE_SSO_BYPASS", bypassValue);
   fs.writeFileSync(
     envLocalPath,
-    content + separator + bypassLine + "\n" + proxyHint + "\n",
+    nextContent.includes("# 开发期接口代理（格式：VITE_DEV_PROXY_<KEY>=<manifest prefix>|<上游 origin>）")
+      ? nextContent
+      : nextContent + proxyHint + "\n",
     "utf8"
   );
 }
@@ -121,6 +133,7 @@ async function cleanupManagedPreviews({
 async function startManagedPreview({
   registryPath = DEFAULT_REGISTRY_PATH,
   projectPath,
+  bypassAuth = true,
   command = "npm",
   buildSpawnArgs = defaultSpawnArgs,
   allocatePort = () => findFreePort("127.0.0.1"),
@@ -134,7 +147,7 @@ async function startManagedPreview({
   }
 
   const resolvedProjectPath = path.resolve(projectPath);
-  ensureDevEnvLocal(resolvedProjectPath);
+  ensureDevEnvLocal(resolvedProjectPath, { bypassAuth });
   let current = await loadLiveRegistry(registryPath);
 
   const replaced = await removeServices(

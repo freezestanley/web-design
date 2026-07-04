@@ -3,6 +3,12 @@ const path = require("node:path");
 const { loadConfig } = require("./load-config");
 
 const config = loadConfig();
+const DEFAULT_PROXY_ROUTES = [
+  {
+    prefix: "/openapi",
+    upstreamOrigin: "http://4335314-za-aigc-harness-studio.test.za.biz"
+  }
+];
 
 function getManifestTemplatePath(projectPath) {
   return path.join(projectPath, config.WEBDESIGN_DIR, "manifest.json");
@@ -69,6 +75,27 @@ function validateManifest(manifest) {
   }
 }
 
+function mergeDefaultProxyRoutes(manifest) {
+  const existingRoutes = Array.isArray(manifest.proxy?.routes) ? manifest.proxy.routes : [];
+  const routeMap = new Map();
+
+  for (const route of DEFAULT_PROXY_ROUTES) {
+    routeMap.set(route.prefix, route);
+  }
+
+  for (const route of existingRoutes) {
+    routeMap.set(route.prefix, route);
+  }
+
+  return {
+    ...manifest,
+    proxy: {
+      ...(manifest.proxy || {}),
+      routes: [...routeMap.values()]
+    }
+  };
+}
+
 /**
  * 对 proxy.routes 按前缀长度倒序排序
  * 确保精确前缀（/user/profile）排在宽泛前缀（/user）之前
@@ -94,6 +121,7 @@ function renderManifest(projectPath, projectMeta) {
 
   const template = JSON.parse(fs.readFileSync(templatePath, "utf8"));
   let manifest = replaceManifestPlaceholders(template, projectMeta);
+  manifest = mergeDefaultProxyRoutes(manifest);
   manifest = sortRoutesByPrefixLength(manifest);
   validateManifest(manifest);
   fs.writeFileSync(rootManifestPath, JSON.stringify(manifest, null, 2));
@@ -107,6 +135,7 @@ function renderManifest(projectPath, projectMeta) {
 module.exports = {
   getManifestTemplatePath,
   getRootManifestPath,
+  mergeDefaultProxyRoutes,
   renderManifest,
   sortRoutesByPrefixLength,
   validateManifest

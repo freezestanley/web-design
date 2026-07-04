@@ -190,12 +190,14 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
 11. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
    - 禁止直接使用外链 URL 作为最终交付资源
    - `default.jpg` 仅允许临时占位，若进入审计仍未替换，必须在 `audit.md` 中标记为失败项
-12. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path>`
+12. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path> [--bypass true|false]`
    - 该脚本负责统一启动 dev preview，并自动治理由 `web-design` 管理过的 Vite 服务
    - 同一 `project-path` 若已有旧的 managed dev preview，启动新服务前必须自动关闭旧服务
    - 全局最多只保留最近 5 个 managed dev preview；超出的最老服务必须自动关闭释放端口
-   - 启动时自动向项目写入 `.env.local`（含 `VITE_SSO_BYPASS=true`），SSO 认证在开发预览中自动关闭
-   - `.env.local` 由 `.gitignore` 保护，不进仓库；Step 4 发布构建读 `.env.production`，bypass 不生效
+   - `--bypass` 默认是 `true`；传 `--bypass false` 时必须把 `.env.local` 中的 `VITE_SSO_BYPASS` 显式同步为 `false`，覆盖历史残留值
+   - `.env.local` 由 `.gitignore` 保护，不进仓库；开发预览允许 bypass，但分享预览和发布构建都禁止复用该 bypass
+   - 启动成功后，优先把 `previewGatewayUrl` 发给用户，用户应通过 `serve` 的登录引导地址进入开发预览，而不是直接打开 Vite 原始端口
+   - 分享预览必须走独立导出：`node scripts/share-preview.js export <project-path> <task-id>`；该导出会强制以 `VITE_SSO_BYPASS=false` 执行构建，并把静态快照写入供 `serve` 消费的目录，同时返回 `sharePreviewUrl`
 13. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`
    - 截图预算固定为单次任务最多 1 次
    - 分配为 1 次桌面全页截图
@@ -310,7 +312,10 @@ DONE
 - `node scripts/gate.js block <project-path> <task-id> --reason "..."`
 - `node scripts/gate.js unblock <project-path> <task-id>`
 - `node scripts/gate.js reopen-dev <project-path> <task-id> --reason "..."`
-- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path]`
+- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path] [--bypass true|false]`
+- `node scripts/share-preview.js export <project-path> <task-id> [--output-dir <dir>]`
+  - 生成给 `serve` 使用的分享预览快照目录，目录内包含静态构建产物、`manifest.json` 与 `_meta.json`
+  - 分享预览构建阶段强制 `VITE_SSO_BYPASS=false`，禁止沿用开发态 `.env.local` 中的 bypass
 - `node scripts/publish.js <project-path> <task-id>`
 - `node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] [--api-doc <path>]`
   - 从接口文档提取 proxy routes 并写入 `.webdesign/manifest.json`

@@ -54,6 +54,32 @@ npm run start
 - `npm run test`：执行网关和插件构建相关测试
 - `npm run start`：启动网关，用于托管 `projects/` 下的真实子应用
 
+## 与 web-design 的关系
+
+`serve` 只负责“分享预览”，不接管 `web-design` 的“开发预览”。
+
+- 开发预览继续使用 `web-design` 的 Vite 预览脚本：`node scripts/vitectrl/dev-preview.js start <project-path> [--bypass true|false]`
+- 分享预览先由 `web-design` 导出静态快照：`node scripts/share-preview.js export <project-path> <task-id>`
+- 导出后的快照目录会写入 `PROJECTS_DIR`，目录内包含：
+  - `index.html`
+  - `assets/`
+  - `manifest.json`
+  - `_meta.json`
+- `serve` 再从该目录读取 `manifest.proxy.routes`，为分享态页面提供代理和插件注入
+- `serve` 还负责统一的预览登录引导：
+  - 开发预览登录入口：`/preview/dev/<project-name>/`
+  - 分享预览登录入口：`/apps/<appId>/`
+  - 未登录时先跳 SSO，完成登录后再进入真实预览页面
+
+开发态和分享态的 `bypass` 规则必须严格分开：
+
+- 开发预览允许 `--bypass true` 或 `--bypass false`
+- 分享预览构建阶段强制 `VITE_SSO_BYPASS=false`
+- `serve` 本身不读取项目 `.env.local`，也不继承开发态 bypass
+- 当 `previewAuth.enabled=true` 时，`serve` 会把登录得到的 session 同步到：
+  - `ATLANTIS_SESSION_ID`：网关自用 cookie
+  - `session_id` / `unsafeSessionId`：前端子应用可读取的 session cookie
+
 ## 配置加载
 
 `serve` 默认优先读取根目录下的：

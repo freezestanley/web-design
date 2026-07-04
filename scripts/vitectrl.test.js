@@ -3,12 +3,14 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const {
   startManagedPreview,
   getManagedPreviewStatus,
   cleanupManagedPreviews
 } = require("./vitectrl/lib/controller");
+const { buildPreviewGatewayUrl } = require("./vitectrl/dev-preview");
 
 let nextFakePort = 4100;
 
@@ -166,4 +168,38 @@ test("cleanup removes dead processes from the registry", async (t) => {
 
   const status = await getManagedPreviewStatus({ registryPath });
   assert.equal(status.services.length, 0);
+});
+
+test("startManagedPreview can persist bypass=false and overwrite stale true", async (t) => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-vitectrl-"));
+  const registryPath = path.join(rootDir, "registry.json");
+  const projectPath = path.join(rootDir, "project-bypass");
+  fs.mkdirSync(projectPath, { recursive: true });
+  fs.writeFileSync(
+    path.join(projectPath, ".env.local"),
+    "VITE_SSO_BYPASS=true\nEXISTING_KEY=1\n",
+    "utf8"
+  );
+
+  t.after(async () => {
+    await terminateRecords(registryPath);
+  });
+
+  await startManagedPreview({
+    ...createOptions(rootDir, registryPath, projectPath),
+    bypassAuth: false
+  });
+
+  const envLocal = fs.readFileSync(path.join(projectPath, ".env.local"), "utf8");
+  assert.match(envLocal, /VITE_SSO_BYPASS=false/);
+  assert.doesNotMatch(envLocal, /VITE_SSO_BYPASS=true/);
+  assert.match(envLocal, /EXISTING_KEY=1/);
+});
+
+test("buildPreviewGatewayUrl respects configured gateway origin", () => {
+  const projectPath = "/tmp/project-cli";
+  assert.equal(
+    buildPreviewGatewayUrl(projectPath, "http://preview.example.com:7788"),
+    "http://preview.example.com:7788/preview/dev/project-cli/"
+  );
 });

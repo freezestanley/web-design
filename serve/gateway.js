@@ -2,6 +2,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
+const { isProcessAlive } = require("../scripts/vitectrl/lib/process");
 
 const { buildPlugin, needsBuild } = require("./plugins/web-design-control-plugin/scripts/build-plugin");
 
@@ -26,6 +27,28 @@ const PLUGIN_DIR = path.join(ROOT_DIR, "plugins", "web-design-control-plugin");
 const RUNTIME_ASSETS = {
   "/__runtime/plugin-bridge.js": path.join(PLUGIN_DIR, "runtime", "plugin-bridge.js")
 };
+const DEFAULT_PREVIEW_AUTH = {
+  enabled: false,
+  cookieName: "ATLANTIS_SESSION_ID",
+  clientSessionCookieName: "session_id",
+  clientUnsafeSessionCookieName: "unsafeSessionId",
+  defaultServiceName: "za-open-bot",
+  ssoHost: "",
+  useMockSso: false,
+  apigAppCode: "",
+  devPreviewRegistryPath: path.resolve(ROOT_DIR, "..", "scripts", "vitectrl", "registry.json")
+};
+const MOCK_TICKETS = {
+  "ticket-za-zhangchong": "session-za-zhangchong",
+  "ticket-za-lisi": "session-za-lisi"
+};
+
+function normalizePreviewAuth(options) {
+  return {
+    ...DEFAULT_PREVIEW_AUTH,
+    ...(options.previewAuth || {})
+  };
+}
 
 function discoverApps({ projectsDir }) {
   if (!projectsDir || !fs.existsSync(projectsDir)) {
@@ -57,7 +80,9 @@ function discoverApps({ projectsDir }) {
         appName: meta.appName || appId,
         rootDir,
         indexFile,
-        proxyRoutes
+        proxyRoutes,
+        projectNo: meta.manifest?.projectId || meta.projectNo || "",
+        manifest: meta.manifest || {}
       };
     })
     .filter(Boolean);
@@ -76,23 +101,33 @@ function getContentType(filePath) {
   return MIME_TYPES[path.extname(filePath).toLowerCase()] || "application/octet-stream";
 }
 
-function sendText(response, statusCode, body, contentType = "text/plain; charset=utf-8") {
+function sendText(response, statusCode, body, contentType = "text/plain; charset=utf-8", extraHeaders = {}) {
   response.writeHead(statusCode, {
     "content-type": contentType,
-    "content-length": Buffer.byteLength(body)
+    "content-length": Buffer.byteLength(body),
+    ...extraHeaders
   });
   response.end(body);
 }
 
-function sendJson(response, statusCode, payload) {
-  sendText(response, statusCode, JSON.stringify(payload), "application/json; charset=utf-8");
+function sendJson(response, statusCode, payload, extraHeaders = {}) {
+  sendText(response, statusCode, JSON.stringify(payload), "application/json; charset=utf-8", extraHeaders);
 }
 
-function sendFile(response, filePath) {
+function sendFile(response, filePath, extraHeaders = {}) {
   response.writeHead(200, {
-    "content-type": getContentType(filePath)
+    "content-type": getContentType(filePath),
+    ...extraHeaders
   });
   fs.createReadStream(filePath).pipe(response);
+}
+
+function sendRedirect(response, location, extraHeaders = {}) {
+  response.writeHead(302, {
+    location,
+    ...extraHeaders
+  });
+  response.end();
 }
 
 function safeJoin(rootDir, relativePath) {
@@ -105,6 +140,382 @@ function safeJoin(rootDir, relativePath) {
 
 function shouldServeSpaFallback(relativePath) {
   return !path.posix.extname(relativePath);
+}
+
+function parseCookieHeader(cookieHeader = "") {
+  return String(cookieHeader || "")
+    .split(";")
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .reduce((accumulator, entry) => {
+      const separatorIndex = entry.indexOf("=");
+      if (separatorIndex === -1) {
+        return accumulator;
+      }
+      accumulator[entry.slice(0, separatorIndex).trim()] = entry.slice(separatorIndex + 1).trim();
+      return accumulator;
+    }, {});
+}
+
+function normalizeSessionValue(rawValue = "") {
+  let normalized = String(rawValue || "").trim();
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const decoded = decodeURIComponent(normalized);
+      if (decoded === normalized) {
+        break;
+      }
+      normalized = decoded;
+    } catch {
+      break;
+    }
+  }
+
+  return normalized;
+}
+
+function normalizeTokenValue(rawValue = "") {
+  if (!rawValue) {
+    return "";
+  }
+
+  let normalized = String(rawValue).trim();
+  try {
+    normalized = decodeURIComponent(normalized);
+  } catch {
+    normalized = String(rawValue).trim();
+  }
+  return normalized.replace(/ /g, "+");
+}
+
+function getRequestContext(requestUrl) {
+  return {
+    token: requestUrl.searchParams.get("token") || "",
+    ticket: requestUrl.searchParams.get("ticket") || "",
+    serviceName: requestUrl.searchParams.get("serviceName") || requestUrl.searchParams.get("servicename") || ""
+  };
+}
+
+function buildTokenForwardPath(requestUrl, sessionToken) {
+  const nextUrl = new URL(requestUrl.toString());
+  nextUrl.searchParams.delete("ticket");
+  nextUrl.searchParams.set("token", sessionToken);
+  return `${nextUrl.pathname}${nextUrl.search}`;
+}
+
+/**
+ * 从请求头推断 serve 自身的 origin（含协议），用于注入 __PREVIEW_SSO_HOST__。
+ *
+ * 优先级：
+ *   1. X-Forwarded-Proto + Host（反向代理/生产环境）
+ *   2. X-Forwarded-Host（CDN 场景）
+ *   3. Host 直接判断（本地 127/localhost → http，其余 → https）
+ *
+ * 这样本地是 http://127.0.0.1:4173，生产是 https://your-domain.com，
+ * 不需要任何硬编码。
+ */
+function resolveServeOrigin(request) {
+  const host = request.headers["x-forwarded-host"] || request.headers.host || "127.0.0.1";
+  const proto = request.headers["x-forwarded-proto"] ||
+    (/^(127\.|localhost)/.test(host.split(":")[0]) ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+function sanitizeCurrentPath(requestUrl) {
+  const nextUrl = new URL(requestUrl.toString());
+  nextUrl.searchParams.delete("ticket");
+  nextUrl.searchParams.delete("token");
+  nextUrl.searchParams.delete("locale");
+  return `${nextUrl.pathname}${nextUrl.search}`;
+}
+
+function resolveSsoHost(previewAuth, request) {
+  if (previewAuth.ssoHost) {
+    return previewAuth.ssoHost;
+  }
+
+  const hostname = String(request.headers.host || "").split(":")[0];
+
+  // 本地开发
+  if (!hostname || hostname === "127.0.0.1" || hostname === "localhost" || hostname === "0.0.0.0") {
+    return "https://nsso-test.zhonganinfo.com";
+  }
+
+  // 生产环境：prd 域名 或 aigc.zhonganonline.com
+  if (
+    hostname.includes(".prd.") ||
+    hostname === "aigc.zhonganonline.com" ||
+    hostname === "ai.zhonganonline.com"
+  ) {
+    return "https://nsso.zhonganinfo.com";
+  }
+
+  // test / pre / sit / uat 等非生产环境
+  return "https://nsso-test.zhonganinfo.com";
+}
+
+function buildSsoLoginUrl(previewAuth, request, requestUrl) {
+  const serviceName = getRequestContext(requestUrl).serviceName || previewAuth.defaultServiceName;
+  const target = encodeURIComponent(`${requestUrl.origin}${sanitizeCurrentPath(requestUrl)}`);
+  return `${resolveSsoHost(previewAuth, request)}/login?service=${serviceName}&target=${target}`;
+}
+
+async function exchangeTicketForSession(previewAuth, request, requestUrl) {
+  const ticket = normalizeTokenValue(getRequestContext(requestUrl).ticket);
+  if (!ticket) {
+    return "";
+  }
+
+  if (previewAuth.useMockSso) {
+    return MOCK_TICKETS[ticket] || "";
+  }
+
+  const serviceName = getRequestContext(requestUrl).serviceName || previewAuth.defaultServiceName;
+  const ssoHost = resolveSsoHost(previewAuth, request);
+  const upstreamUrl = `${ssoHost}/validate2?service=${encodeURIComponent(serviceName)}&ticket=${encodeURIComponent(ticket)}`;
+  const validate2Headers = {
+    Accept: "application/json",
+    "X-Service-Name": serviceName,
+    "X-Platform-Type": "web",
+    "X-Requested-With": "XMLHttpRequest"
+  };
+  if (previewAuth.apigAppCode) {
+    validate2Headers["X-Apig-AppCode"] = previewAuth.apigAppCode;
+  }
+  const upstreamResponse = await fetch(upstreamUrl, { headers: validate2Headers });
+  if (!upstreamResponse.ok) {
+    process.stderr.write(`[debug] validate2 http error: ${upstreamResponse.status}\n`);
+    return "";
+  }
+
+  const payload = await upstreamResponse.json();
+  process.stderr.write(`[debug] validate2 payload: ${JSON.stringify(payload)}\n`);
+  // 直接返回原始 result（保留 %2B 等编码），供 userinfo 原样透传
+  return payload?.success && payload?.result ? String(payload.result) : "";
+}
+
+async function resolvePreviewSession(previewAuth, request, requestUrl) {
+  const cookies = parseCookieHeader(request.headers.cookie || "");
+  const requestContext = getRequestContext(requestUrl);
+  const cookieSession =
+    cookies[previewAuth.cookieName] ||
+    cookies[previewAuth.clientSessionCookieName] ||
+    cookies[previewAuth.clientUnsafeSessionCookieName] ||
+    "";
+  if (cookieSession) {
+    return {
+      sessionToken: normalizeSessionValue(cookieSession),
+      shouldSetCookies: false,
+      shouldRedirectToCleanUrl: false,
+      redirectLocation: "",
+      authSource: "cookie"
+    };
+  }
+
+  const headerSession = normalizeSessionValue(request.headers["x-usercenter-session"] || "");
+  if (headerSession) {
+    return {
+      sessionToken: headerSession,
+      shouldSetCookies: false,
+      shouldRedirectToCleanUrl: false,
+      redirectLocation: "",
+      authSource: "header"
+    };
+  }
+
+  if (requestContext.token) {
+    return {
+      sessionToken: normalizeSessionValue(requestContext.token),
+      shouldSetCookies: true,
+      shouldRedirectToCleanUrl: false,
+      redirectLocation: "",
+      authSource: "token"
+    };
+  }
+
+  if (requestContext.ticket) {
+    const sessionToken = await exchangeTicketForSession(previewAuth, request, requestUrl);
+    return {
+      sessionToken,
+      shouldSetCookies: Boolean(sessionToken),
+      shouldRedirectToCleanUrl: Boolean(sessionToken),
+      redirectLocation: sessionToken ? buildTokenForwardPath(requestUrl, sessionToken) : "",
+      authSource: "ticket"
+    };
+  }
+
+  return {
+    sessionToken: "",
+    shouldSetCookies: false,
+    shouldRedirectToCleanUrl: false,
+    redirectLocation: "",
+    authSource: "none"
+  };
+}
+
+function buildPreviewSessionCookies(previewAuth, sessionToken) {
+  if (!sessionToken) {
+    return [];
+  }
+
+  return [
+    `${previewAuth.cookieName}=${encodeURIComponent(sessionToken)}; Path=/; HttpOnly; SameSite=Lax`,
+    `${previewAuth.clientSessionCookieName}=${encodeURIComponent(sessionToken)}; Path=/; SameSite=Lax`,
+    `${previewAuth.clientUnsafeSessionCookieName}=${encodeURIComponent(sessionToken)}; Path=/; SameSite=Lax`
+  ];
+}
+
+function buildPreviewSessionHeaders(previewAuth, sessionToken) {
+  const cookies = buildPreviewSessionCookies(previewAuth, sessionToken);
+  return cookies.length ? { "set-cookie": cookies } : {};
+}
+
+function buildPreviewSessionClearCookies(previewAuth) {
+  return [
+    `${previewAuth.cookieName}=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax`,
+    `${previewAuth.clientSessionCookieName}=; Path=/; Max-Age=0; SameSite=Lax`,
+    `${previewAuth.clientUnsafeSessionCookieName}=; Path=/; Max-Age=0; SameSite=Lax`
+  ];
+}
+
+function buildPreviewSessionClearHeaders(previewAuth) {
+  return { "set-cookie": buildPreviewSessionClearCookies(previewAuth) };
+}
+
+async function validatePreviewSession(previewAuth, request, sessionToken) {
+  if (!previewAuth.enabled || !sessionToken || previewAuth.useMockSso) {
+    return true;
+  }
+
+  const serviceName = previewAuth.defaultServiceName;
+  // sessionToken 可能是 validate2 返回的原始编码值（如 %2B0y7...），
+  // 不能经过 normalizeSessionValue（decode 后 + 号拼入 query 会变空格，导致 401）
+  // query string 直接透传原始值；header 用 decodeURIComponent 后的纯文本
+  const rawSession = String(sessionToken);
+  process.stderr.write(`[debug] validatePreviewSession rawSession prefix: ${rawSession.slice(0, 20)}\n`);
+  const ssoHost = resolveSsoHost(previewAuth, request);
+  const userinfoUrl = `${ssoHost}/userinfo?service=${encodeURIComponent(serviceName)}&encryptedSession=${encodeURIComponent(rawSession)}`;
+
+  try {
+    const userinfoHeaders = {
+      Accept: "application/json",
+      "X-Service-Name": serviceName,
+      "X-Usercenter-Session": rawSession,
+      "X-Platform-Type": "web",
+      "X-Requested-With": "XMLHttpRequest"
+    };
+    if (previewAuth.apigAppCode) {
+      userinfoHeaders["X-Apig-AppCode"] = previewAuth.apigAppCode;
+    }
+    const response = await fetch(userinfoUrl, { headers: userinfoHeaders });
+
+    if (!response.ok) {
+      process.stderr.write(`[debug] userinfo http error: ${response.status}\n`);
+      return false;
+    }
+
+    const payload = await response.json();
+    process.stderr.write(`[debug] userinfo payload: ${JSON.stringify(payload)}\n`);
+    return payload?.success === true;
+  } catch (err) {
+    process.stderr.write(`[debug] userinfo exception: ${err.message}\n`);
+    return false;
+  }
+}
+
+function buildPreviewBootstrapScript(app, sessionToken) {
+  if (!sessionToken) {
+    return "";
+  }
+
+  return [
+    "<script>",
+    "(function(){",
+    `var token=${JSON.stringify(sessionToken)};`,
+    `var projectNo=${JSON.stringify(app.projectNo || app.appId)};`,
+    "try { localStorage.setItem('session_id', token); } catch (error) {}",
+    "document.cookie='session_id=' + encodeURIComponent(token) + '; path=/; SameSite=Lax';",
+    "document.cookie='unsafeSessionId=' + encodeURIComponent(token) + '; path=/; SameSite=Lax';",
+    "window.__PROJECT_NO__ = projectNo;",
+    "})();",
+    "</script>"
+  ].join("");
+}
+
+function buildContentBaseInjection(appId, ssoHost) {
+  const basename = `/apps/${appId}/content/`;
+  const normalizedSsoHost = String(ssoHost || "");
+  return [
+    `<base href="${basename}">`,
+    "<script>",
+    `window.__BASENAME__=${JSON.stringify(basename)};`,
+    `window.__PREVIEW_SSO_HOST__=${JSON.stringify(normalizedSsoHost)};`,
+    "(function(){",
+    "var previewSsoHost = window.__PREVIEW_SSO_HOST__ || '';",
+    "if (!previewSsoHost) return;",
+    "var ssoHostPattern = /^https:\\/\\/(nsso(?:-test)?\\.zhonganinfo\\.com|nsso\\.zhongan\\.io)(?=\\/|$)/i;",
+    "function rewriteUrl(input) {",
+    "  if (typeof input !== 'string') return input;",
+    "  return ssoHostPattern.test(input) ? input.replace(ssoHostPattern, previewSsoHost) : input;",
+    "}",
+    "var originalFetch = window.fetch;",
+    "if (typeof originalFetch === 'function') {",
+    "  window.fetch = function(input, init) {",
+    "    if (typeof input === 'string') return originalFetch.call(this, rewriteUrl(input), init);",
+    "    if (input && typeof input.url === 'string') return originalFetch.call(this, new Request(rewriteUrl(input.url), input), init);",
+    "    return originalFetch.call(this, input, init);",
+    "  };",
+    "}",
+    "var xhrProto = window.XMLHttpRequest && window.XMLHttpRequest.prototype;",
+    "if (xhrProto && typeof xhrProto.open === 'function') {",
+    "  var originalOpen = xhrProto.open;",
+    "  xhrProto.open = function(method, url) {",
+    "    var args = Array.prototype.slice.call(arguments);",
+    "    args[1] = rewriteUrl(url);",
+    "    return originalOpen.apply(this, args);",
+    "  };",
+    "}",
+    "})();",
+    "</script>"
+  ].join("\n  ");
+}
+
+function injectPreviewBootstrap(html, app, sessionToken) {
+  const bootstrap = buildPreviewBootstrapScript(app, sessionToken);
+  if (!bootstrap) {
+    return html;
+  }
+
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `  ${bootstrap}\n  </head>`);
+  }
+  return `${bootstrap}${html}`;
+}
+
+function findDevPreviewRoute(pathname) {
+  const match = pathname.match(/^\/preview\/dev\/([^/]+)(\/.*)?$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    projectName: match[1],
+    relativePath: match[2] || "/"
+  };
+}
+
+function readManagedPreviewService(registryPath, projectName) {
+  if (!registryPath || !fs.existsSync(registryPath)) {
+    return null;
+  }
+
+  const registry = JSON.parse(fs.readFileSync(registryPath, "utf8"));
+  const services = Array.isArray(registry.services) ? registry.services : [];
+  return (
+    services.find(
+      (service) => path.basename(service.projectPath || "") === projectName && isProcessAlive(service.pid)
+    ) || null
+  );
 }
 
 function buildRuntimeConfig(options) {
@@ -125,7 +536,19 @@ function buildRuntimeConfig(options) {
   };
 }
 
-function renderShellPage(runtimeConfig, app) {
+function buildShellContentSrc(appId, requestUrl, sessionToken) {
+  const searchParams = new URLSearchParams(requestUrl.searchParams);
+  searchParams.delete("ticket");
+  if (!sessionToken) {
+    searchParams.delete("token");
+  }
+
+  const search = searchParams.toString();
+  return `/apps/${appId}/content/${search ? `?${search}` : ""}`;
+}
+
+function renderShellPage(runtimeConfig, app, sessionToken, requestUrl) {
+  const iframeSrc = buildShellContentSrc(app.appId, requestUrl, sessionToken);
   const configScript = `<script>window.__WEB_DESIGN_GATEWAY__=${JSON.stringify({
     appId: app.appId,
     runtimeConfig
@@ -146,6 +569,7 @@ function renderShellPage(runtimeConfig, app) {
     "      .wd-shell__frame { width: 100%; height: 100%; border: 0; background: #fff; display: block; }",
     "    </style>",
     `    ${configScript}`,
+    `    ${buildPreviewBootstrapScript(app, sessionToken)}`,
     '    <link rel="stylesheet" href="/__plugin-dist/plugin.css" />',
     "  </head>",
     "  <body>",
@@ -154,7 +578,7 @@ function renderShellPage(runtimeConfig, app) {
     '        <div id="__webdesign_shell_plugin"></div>',
     "      </header>",
     '      <section class="wd-shell__content">',
-    `        <iframe class="wd-shell__frame" src="/apps/${app.appId}/content/" title="${app.appName}"></iframe>`,
+    `        <iframe class="wd-shell__frame" src="${iframeSrc}" title="${app.appName}"></iframe>`,
     "      </section>",
     "    </main>",
     '    <script defer src="/__plugin-dist/plugin.js"></script>',
@@ -164,10 +588,20 @@ function renderShellPage(runtimeConfig, app) {
   ].join("\n");
 }
 
-function rewriteContentHtml(html, appId) {
+function rewriteContentHtml(html, app, sessionToken, ssoHost) {
+  const appId = app.appId;
   const sourcePrefix = `/apps/${appId}/`;
   const targetPrefix = `/apps/${appId}/content/`;
-  return html.split(sourcePrefix).join(targetPrefix);
+  const assetPrefix = `${targetPrefix}assets/`;
+  const rewrittenHtml = html
+    .split(sourcePrefix)
+    .join(targetPrefix)
+    .replace(/(["'(])\/assets\//g, `$1${assetPrefix}`);
+  const contentBaseInjection = buildContentBaseInjection(appId, ssoHost);
+  const htmlWithBase = rewrittenHtml.includes("</head>")
+    ? rewrittenHtml.replace("</head>", `  ${contentBaseInjection}\n  </head>`)
+    : `${contentBaseInjection}\n${rewrittenHtml}`;
+  return injectPreviewBootstrap(htmlWithBase, app, sessionToken);
 }
 
 function findAppRoute(appMap, pathname) {
@@ -204,17 +638,46 @@ function findAppRoute(appMap, pathname) {
   };
 }
 
-function findProxyRoute(app, relativePath) {
-  return app.proxyRoutes.find((route) => relativePath === route.prefix || relativePath.startsWith(`${route.prefix}/`));
+function normalizeProxyRelativePath(relativePath) {
+  if (relativePath === "/api") {
+    return "/";
+  }
+  if (relativePath.startsWith("/api/")) {
+    return relativePath.slice(4) || "/";
+  }
+  return relativePath;
 }
 
-async function proxyToUpstream({ request, response, upstreamOrigin, targetPath }) {
+function resolveProxyMatch(app, relativePath) {
+  const normalizedRelativePath = normalizeProxyRelativePath(relativePath);
+  const route = app.proxyRoutes.find(
+    (candidate) =>
+      normalizedRelativePath === candidate.prefix || normalizedRelativePath.startsWith(`${candidate.prefix}/`)
+  );
+
+  if (!route) {
+    return null;
+  }
+
+  return {
+    route,
+    targetPath: `${normalizedRelativePath}${normalizedRelativePath === "/" ? "" : ""}`
+  };
+}
+
+async function proxyToUpstream({ request, response, upstreamOrigin, targetPath, sessionToken, serviceName }) {
   const body = await readBody(request);
   const upstreamUrl = new URL(targetPath, upstreamOrigin);
   const headers = { ...request.headers };
   delete headers.host;
   if (!body.length) {
     delete headers["content-length"];
+  }
+  if (sessionToken && !headers["x-usercenter-session"]) {
+    headers["x-usercenter-session"] = sessionToken;
+  }
+  if (serviceName && !headers["x-service-name"]) {
+    headers["x-service-name"] = serviceName;
   }
 
   const upstreamResponse = await fetch(upstreamUrl, {
@@ -301,11 +764,51 @@ function createHandler(options) {
   const runtimeConfig = buildRuntimeConfig(options);
   const apps = discoverApps({ projectsDir: options.projectsDir });
   const appMap = new Map(apps.map((app) => [app.appId, app]));
+  const previewAuth = normalizePreviewAuth(options);
 
   return async function handler(request, response) {
     const requestUrl = new URL(request.url, `http://${request.headers.host || "127.0.0.1"}`);
 
     try {
+      const devPreviewRoute = findDevPreviewRoute(requestUrl.pathname);
+      if (devPreviewRoute) {
+        if (!previewAuth.enabled) {
+          return sendJson(response, 404, { error: "preview_auth_disabled" });
+        }
+
+        const authState = await resolvePreviewSession(previewAuth, request, requestUrl);
+        const sessionValid = await validatePreviewSession(previewAuth, request, authState.sessionToken);
+        if (authState.sessionToken && !sessionValid) {
+          return sendRedirect(
+            response,
+            buildSsoLoginUrl(previewAuth, request, requestUrl),
+            buildPreviewSessionClearHeaders(previewAuth)
+          );
+        }
+        if (!authState.sessionToken) {
+          return sendRedirect(response, buildSsoLoginUrl(previewAuth, request, requestUrl));
+        }
+        if (authState.shouldRedirectToCleanUrl) {
+          return sendRedirect(
+            response,
+            sanitizeCurrentPath(requestUrl),
+            buildPreviewSessionHeaders(previewAuth, authState.sessionToken)
+          );
+        }
+
+        const service = readManagedPreviewService(previewAuth.devPreviewRegistryPath, devPreviewRoute.projectName);
+        if (!service) {
+          return sendJson(response, 404, { error: "dev_preview_not_found", projectName: devPreviewRoute.projectName });
+        }
+
+        const targetUrl = new URL(devPreviewRoute.relativePath, service.url.endsWith("/") ? service.url : `${service.url}/`);
+        return sendRedirect(
+          response,
+          `${targetUrl.origin}${targetUrl.pathname}${requestUrl.search}`,
+          buildPreviewSessionHeaders(previewAuth, authState.sessionToken)
+        );
+      }
+
       if (requestUrl.pathname === "/apps") {
         return sendJson(
           response,
@@ -315,6 +818,38 @@ function createHandler(options) {
             appName: app.appName
           }))
         );
+      }
+
+      // SSO 代理路由：前端 rewriteUrl 把 SSO 域 rewrite 到 serve，
+      // serve 再代理到真实 SSO，避免浏览器 CORS 问题
+      if (
+        previewAuth.enabled &&
+        (requestUrl.pathname === "/validate2" || requestUrl.pathname === "/userinfo")
+      ) {
+        const ssoHost = resolveSsoHost(previewAuth, request);
+        const targetUrl = new URL(requestUrl.pathname + requestUrl.search, ssoHost);
+        const proxyHeaders = {
+          Accept: "application/json",
+          "X-Service-Name": previewAuth.defaultServiceName,
+          "X-Platform-Type": "web",
+          "X-Requested-With": "XMLHttpRequest"
+        };
+        if (previewAuth.apigAppCode) {
+          proxyHeaders["X-Apig-AppCode"] = previewAuth.apigAppCode;
+        }
+        // userinfo 需要带 X-Usercenter-Session
+        const sessionHeader = request.headers["x-usercenter-session"] || "";
+        if (sessionHeader) {
+          proxyHeaders["X-Usercenter-Session"] = sessionHeader;
+        }
+        const proxyRes = await fetch(targetUrl.toString(), { headers: proxyHeaders });
+        const body = await proxyRes.text();
+        const corsHeaders = {
+          "access-control-allow-origin": request.headers.origin || "*",
+          "access-control-allow-credentials": "true",
+          "content-type": proxyRes.headers.get("content-type") || "application/json"
+        };
+        return sendText(response, proxyRes.status, body, corsHeaders["content-type"], corsHeaders);
       }
 
       if (RUNTIME_ASSETS[requestUrl.pathname]) {
@@ -331,6 +866,20 @@ function createHandler(options) {
       }
 
       if (requestUrl.pathname.startsWith("/__plugin/") || requestUrl.pathname.startsWith("/__control/")) {
+        let controlAuthState = null;
+        if (previewAuth.enabled) {
+          controlAuthState = await resolvePreviewSession(previewAuth, request, requestUrl);
+          const sessionValid = await validatePreviewSession(previewAuth, request, controlAuthState.sessionToken);
+          if (controlAuthState.sessionToken && !sessionValid) {
+            return sendJson(response, 401, { error: "unauthorized" }, buildPreviewSessionClearHeaders(previewAuth));
+          }
+          if (!controlAuthState.sessionToken) {
+            return sendJson(response, 401, { error: "unauthorized" });
+          }
+          if (controlAuthState.shouldRedirectToCleanUrl) {
+            return sendJson(response, 401, { error: "ticket_login_required" }, buildPreviewSessionHeaders(previewAuth, controlAuthState.sessionToken));
+          }
+        }
         const controlTarget = getControlTarget(options.controlProxy, requestUrl.pathname);
         const isSubmitRoute = requestUrl.pathname === "/__plugin/submit" || requestUrl.pathname === "/__control/submit";
         if (!controlTarget && buildMockPayload(options, requestUrl.pathname, null) === null) {
@@ -357,7 +906,9 @@ function createHandler(options) {
           request,
           response,
           upstreamOrigin: controlTarget.upstreamOrigin,
-          targetPath: `${controlTarget.path || "/"}${requestUrl.search}`
+          targetPath: `${controlTarget.path || "/"}${requestUrl.search}`,
+          sessionToken: controlAuthState?.sessionToken || "",
+          serviceName: previewAuth.defaultServiceName
         });
       }
 
@@ -373,17 +924,59 @@ function createHandler(options) {
       }
 
       const app = appMatch.app;
+      let authState = null;
+      const proxyMatch = appMatch.mode === "content" ? resolveProxyMatch(app, appMatch.relativePath) : null;
+      const proxyRoute = proxyMatch?.route || null;
+      const requiresPreviewHtmlAuth =
+        previewAuth.enabled &&
+        (appMatch.mode === "shell" ||
+          (appMatch.mode === "content" &&
+            (appMatch.relativePath === "/" || shouldServeSpaFallback(appMatch.relativePath) || proxyRoute)));
+      if (requiresPreviewHtmlAuth) {
+        authState = await resolvePreviewSession(previewAuth, request, requestUrl);
+        const sessionValid = await validatePreviewSession(previewAuth, request, authState.sessionToken);
+        if (authState.sessionToken && !sessionValid) {
+          if (proxyRoute) {
+            return sendJson(response, 401, { error: "unauthorized" }, buildPreviewSessionClearHeaders(previewAuth));
+          }
+          return sendRedirect(
+            response,
+            buildSsoLoginUrl(previewAuth, request, requestUrl),
+            buildPreviewSessionClearHeaders(previewAuth)
+          );
+        }
+        if (!authState.sessionToken) {
+          if (proxyRoute) {
+            return sendJson(response, 401, { error: "unauthorized" });
+          }
+          return sendRedirect(response, buildSsoLoginUrl(previewAuth, request, requestUrl));
+        }
+        if (authState.shouldRedirectToCleanUrl) {
+          return sendRedirect(
+            response,
+            authState.redirectLocation || sanitizeCurrentPath(requestUrl),
+            buildPreviewSessionHeaders(previewAuth, authState.sessionToken)
+          );
+        }
+      }
       if (appMatch.mode === "shell") {
-        return sendText(response, 200, renderShellPage(runtimeConfig, app), "text/html; charset=utf-8");
+        return sendText(
+          response,
+          200,
+          renderShellPage(runtimeConfig, app, authState?.sessionToken || "", requestUrl),
+          "text/html; charset=utf-8",
+          buildPreviewSessionHeaders(previewAuth, authState?.sessionToken || "")
+        );
       }
 
-      const proxyRoute = findProxyRoute(app, appMatch.relativePath);
       if (proxyRoute) {
         return proxyToUpstream({
           request,
           response,
           upstreamOrigin: proxyRoute.upstreamOrigin,
-          targetPath: `${appMatch.relativePath}${requestUrl.search}`
+          targetPath: `${proxyMatch.targetPath}${requestUrl.search}`,
+          sessionToken: authState?.sessionToken || "",
+          serviceName: previewAuth.defaultServiceName
         });
       }
 
@@ -395,7 +988,13 @@ function createHandler(options) {
       if (appMatch.relativePath === "/" || shouldServeSpaFallback(appMatch.relativePath)) {
         ensurePluginBuilt();
         const html = fs.readFileSync(app.indexFile, "utf8");
-        return sendText(response, 200, rewriteContentHtml(html, app.appId), "text/html; charset=utf-8");
+        return sendText(
+          response,
+          200,
+          rewriteContentHtml(html, app, authState?.sessionToken || "", resolveServeOrigin(request)),
+          "text/html; charset=utf-8",
+          buildPreviewSessionHeaders(previewAuth, authState?.sessionToken || "")
+        );
       }
 
       return sendJson(response, 404, { error: "asset_not_found" });
