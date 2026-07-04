@@ -33,17 +33,13 @@ function parseArgs(argv) {
   };
 }
 
-function buildPreviewGatewayUrl(projectPath, previewGatewayOrigin = process.env.WEB_DESIGN_PREVIEW_GATEWAY_ORIGIN || "http://127.0.0.1:4173") {
-  return `${previewGatewayOrigin}/preview/dev/${path.basename(path.resolve(projectPath))}/`;
-}
-
 async function main() {
   const { command, projectPath, options } = parseArgs(process.argv.slice(2));
   const registryPath = options.registry
     ? path.resolve(options.registry)
     : undefined;
   const maxServices = options["max-services"] ? Number(options["max-services"]) : 5;
-  const bypassAuth = options.bypass === "" ? true : options.bypass !== "false";
+  const bypassAuth = options.bypass === "true"; // default: false
 
   if (!command) {
     fail("Usage: node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path] [--registry path] [--max-services 5]");
@@ -64,7 +60,7 @@ async function main() {
         `${JSON.stringify(
           {
             ...result,
-            previewGatewayUrl: buildPreviewGatewayUrl(projectPath)
+            viteUrl: result.url
           },
           null,
           2
@@ -94,6 +90,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  buildPreviewGatewayUrl,
   parseArgs
 };

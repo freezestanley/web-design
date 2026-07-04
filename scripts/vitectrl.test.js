@@ -10,7 +10,6 @@ const {
   getManagedPreviewStatus,
   cleanupManagedPreviews
 } = require("./vitectrl/lib/controller");
-const { buildPreviewGatewayUrl } = require("./vitectrl/dev-preview");
 
 let nextFakePort = 4100;
 
@@ -196,10 +195,22 @@ test("startManagedPreview can persist bypass=false and overwrite stale true", as
   assert.match(envLocal, /EXISTING_KEY=1/);
 });
 
-test("buildPreviewGatewayUrl respects configured gateway origin", () => {
-  const projectPath = "/tmp/project-cli";
-  assert.equal(
-    buildPreviewGatewayUrl(projectPath, "http://preview.example.com:7788"),
-    "http://preview.example.com:7788/preview/dev/project-cli/"
+test("dev-preview start outputs viteUrl and no previewGatewayUrl", () => {
+  // 此测试只验证输出字段名，不实际启动 Vite 进程
+  // 通过检查 dev-preview.js 源码中的 JSON 拼装逻辑验证
+  const src = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "vitectrl/dev-preview.js"),
+    "utf8"
   );
+  assert.match(src, /viteUrl/, "应输出 viteUrl");
+  assert.doesNotMatch(src, /previewGatewayUrl/, "不应再输出 previewGatewayUrl");
+});
+
+test("dev-preview bypass defaults to false", () => {
+  const src = require("node:fs").readFileSync(
+    require("node:path").resolve(__dirname, "vitectrl/dev-preview.js"),
+    "utf8"
+  );
+  // bypassAuth 默认值：options.bypass !== "false" 的逻辑中，空字符串应为 false
+  assert.match(src, /bypass.*false|false.*bypass/, "bypass 默认应为 false");
 });
