@@ -3,7 +3,6 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
 const { loadConfig } = require("./lib/load-config");
 const { renderManifest } = require("./lib/manifest");
 const { readProjectMeta } = require("./lib/project-state");
@@ -85,34 +84,33 @@ function exportSharePreview(projectPath, taskId, outputDir) {
 
   ensureTaskExists(resolvedProjectPath, taskId);
 
-  fs.rmSync(path.join(resolvedProjectPath, "dist"), { recursive: true, force: true });
-  execFileSync("npm", ["run", "build"], {
-    cwd: resolvedProjectPath,
-    stdio: "pipe",
-    env: {
-      ...process.env,
-      VITE_SSO_BYPASS: "false"
-    }
-  });
-
+  // 直接复用 G7 已有 dist，不重新 build
   const distDir = path.join(resolvedProjectPath, "dist");
   const distIndexPath = path.join(distDir, "index.html");
   if (!fs.existsSync(distIndexPath)) {
-    throw new Error("Build completed without dist/index.html");
+    throw new Error("dist/index.html 不存在，请先完成 G7 build（node scripts/vitectrl/dev-preview.js start <project-path> --bypass false）");
   }
 
   const projectMeta = readProjectMeta(resolvedProjectPath);
   const { manifest } = renderManifest(resolvedProjectPath, projectMeta);
   const version = buildVersion(now);
-  const snapshotDir = path.join(resolvedOutputDir, version);
-  fs.rmSync(snapshotDir, { recursive: true, force: true });
+
+  const appId = projectMeta.projectUid || manifest.projectId || path.basename(resolvedProjectPath);
+  const appDir = path.join(resolvedOutputDir, appId);
+  const versionsDir = path.join(appDir, "versions");
+  const snapshotDir = path.join(versionsDir, version);
+  const currentLink = path.join(appDir, "current");
+  const tmpLink = path.join(appDir, "current.new");
+
+  // 写入版本目录
+  fs.mkdirSync(snapshotDir, { recursive: true });
   copyDirContents(distDir, snapshotDir);
   fs.writeFileSync(path.join(snapshotDir, "manifest.json"), JSON.stringify(manifest, null, 2));
 
   const meta = {
     owner: projectMeta.author || "",
-    appName: projectMeta.name || manifest.name || projectMeta.projectUid || path.basename(resolvedProjectPath),
-    appNo: projectMeta.projectUid || manifest.projectId || path.basename(resolvedProjectPath),
+    appName: projectMeta.name || manifest.name || appId,
+    appNo: appId,
     version,
     description: projectMeta.summary || "",
     uploadedBy: projectMeta.author || "",
@@ -122,13 +120,18 @@ function exportSharePreview(projectPath, taskId, outputDir) {
   };
   fs.writeFileSync(path.join(snapshotDir, "_meta.json"), JSON.stringify(meta, null, 2));
 
+  // 原子更新 current 软链接
+  try { fs.unlinkSync(tmpLink); } catch { /* 不存在则忽略 */ }
+  fs.symlinkSync(`versions/${version}`, tmpLink);
+  fs.renameSync(tmpLink, currentLink);
+
   return {
-    appId: meta.appNo,
+    appId,
     appName: meta.appName,
     version,
     snapshotPath: snapshotDir,
     outputDir: resolvedOutputDir,
-    sharePreviewUrl: `${process.env.WEB_DESIGN_PREVIEW_GATEWAY_ORIGIN || "http://127.0.0.1:4173"}/apps/${meta.appNo}/`
+    sharePreviewUrl: `${process.env.WEB_DESIGN_PREVIEW_GATEWAY_ORIGIN || "http://127.0.0.1:4173"}/apps/${appId}/`
   };
 }
 

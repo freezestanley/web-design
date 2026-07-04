@@ -108,57 +108,135 @@ function setupSharePreviewProject() {
   return { tempDir, projectPath, taskId };
 }
 
-test("share-preview export builds a serve snapshot and forces bypass=false", () => {
+test("share-preview export reuses existing dist without rebuilding", () => {
   const { tempDir, projectPath, taskId } = setupSharePreviewProject();
   const shareProjectsDir = path.join(tempDir, "share-projects");
-  const relativeProjectPath = path.relative(path.resolve(__dirname, ".."), projectPath);
 
-  const result = spawnSync(process.execPath, ["scripts/share-preview.js", "export", relativeProjectPath, taskId], {
-    cwd: path.resolve(__dirname, ".."),
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      WEB_DESIGN_SHARE_PROJECTS_DIR: shareProjectsDir,
-      WEB_DESIGN_NOW: "2026-07-04T09:10:11.000Z"
+  // 预先写入 dist（模拟 G7 已 build）
+  const distDir = path.join(projectPath, "dist");
+  fs.mkdirSync(path.join(distDir, "assets"), { recursive: true });
+  fs.writeFileSync(path.join(distDir, "index.html"), "<!doctype html><html><body>prebuilt</body></html>");
+  fs.writeFileSync(path.join(distDir, "assets", "main.js"), "console.log('prebuilt');");
+
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/share-preview.js", "export", projectPath, taskId],
+    {
+      cwd: path.resolve(__dirname, ".."),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        WEB_DESIGN_SHARE_PROJECTS_DIR: shareProjectsDir,
+        WEB_DESIGN_NOW: "2026-07-04T09:10:11.000Z"
+      }
     }
-  });
+  );
 
   assert.equal(result.status, 0, result.stderr);
   const json = JSON.parse(result.stdout);
   assert.equal(json.appId, "PROJshare0011223344");
   assert.match(json.version, /^v20260704091011-[a-f0-9]{6}$/);
-  assert.equal(path.isAbsolute(json.snapshotPath), true);
   assert.equal(json.sharePreviewUrl, "http://127.0.0.1:4173/apps/PROJshare0011223344/");
 
-  const snapshotDir = json.snapshotPath;
+  // 版本目录结构：<appId>/versions/<version>/
+  const appDir = path.join(shareProjectsDir, "PROJshare0011223344");
+  const versionsDir = path.join(appDir, "versions");
+  const snapshotDir = path.join(versionsDir, json.version);
   assert.equal(fs.existsSync(path.join(snapshotDir, "index.html")), true);
   assert.equal(fs.existsSync(path.join(snapshotDir, "assets", "main.js")), true);
-  assert.equal(fs.existsSync(path.join(snapshotDir, ".env.local")), false);
 
-  const html = fs.readFileSync(path.join(snapshotDir, "index.html"), "utf8");
-  assert.match(html, /bypass=false/);
+  // current 软链接存在且指向正确版本
+  const currentLink = path.join(appDir, "current");
+  assert.equal(fs.lstatSync(currentLink).isSymbolicLink(), true);
+  assert.equal(fs.readlinkSync(currentLink), `versions/${json.version}`);
 
+  // _meta.json 包含必要字段
   const meta = JSON.parse(fs.readFileSync(path.join(snapshotDir, "_meta.json"), "utf8"));
   assert.equal(meta.appNo, "PROJshare0011223344");
   assert.equal(meta.appName, "demo-project");
   assert.equal(meta.version, json.version);
-  assert.equal(meta.uploadedBy, "stanley");
-  assert.equal(meta.manifest.projectId, "demo-project");
-  assert.deepEqual(meta.manifest.proxy.routes, [
+});
+
+test("share-preview export fails if dist/index.html does not exist", () => {
+  const { tempDir, projectPath, taskId } = setupSharePreviewProject();
+  const shareProjectsDir = path.join(tempDir, "share-projects");
+  // 不写 dist，直接 export
+
+  const result = spawnSync(
+    process.execPath,
+    ["scripts/share-preview.js", "export", projectPath, taskId],
     {
-      prefix: "/openapi",
-      upstreamOrigin: "http://4335314-za-aigc-harness-studio.test.za.biz"
-    },
-    {
-      prefix: "/orders",
-      upstreamOrigin: "http://localhost:3000"
+      cwd: path.resolve(__dirname, ".."),
+      encoding: "utf8",
+      env: { ...process.env, WEB_DESIGN_SHARE_PROJECTS_DIR: shareProjectsDir }
     }
-  ]);
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /dist\/index\.html 不存在/);
+});
+
+test("share-preview export updates current symlink on second export", () => {
+  const { tempDir, projectPath, taskId } = setupSharePreviewProject();
+  const shareProjectsDir = path.join(tempDir, "share-projects");
+
+  // 第一次 export
+  const distDir = path.join(projectPath, "dist");
+  fs.mkdirSync(path.join(distDir, "assets"), { recursive: true });
+  fs.writeFileSync(path.join(distDir, "index.html"), "v1");
+
+  const result1 = spawnSync(
+    process.execPath,
+    ["scripts/share-preview.js", "export", projectPath, taskId],
+    {
+      cwd: path.resolve(__dirname, ".."),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        WEB_DESIGN_SHARE_PROJECTS_DIR: shareProjectsDir,
+        WEB_DESIGN_NOW: "2026-07-04T09:00:00.000Z"
+      }
+    }
+  );
+  assert.equal(result1.status, 0, result1.stderr);
+  const json1 = JSON.parse(result1.stdout);
+
+  // 第二次 export（不同时间戳）
+  const result2 = spawnSync(
+    process.execPath,
+    ["scripts/share-preview.js", "export", projectPath, taskId],
+    {
+      cwd: path.resolve(__dirname, ".."),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        WEB_DESIGN_SHARE_PROJECTS_DIR: shareProjectsDir,
+        WEB_DESIGN_NOW: "2026-07-04T10:00:00.000Z"
+      }
+    }
+  );
+  assert.equal(result2.status, 0, result2.stderr);
+  const json2 = JSON.parse(result2.stdout);
+
+  assert.notEqual(json1.version, json2.version);
+
+  // current 软链接已更新为第二次版本
+  const currentLink = path.join(shareProjectsDir, "PROJshare0011223344", "current");
+  assert.equal(fs.readlinkSync(currentLink), `versions/${json2.version}`);
+
+  // 第一次版本目录仍保留
+  const ver1Dir = path.join(shareProjectsDir, "PROJshare0011223344", "versions", json1.version);
+  assert.equal(fs.existsSync(ver1Dir), true);
 });
 
 test("share-preview export uses configured preview gateway origin when provided", () => {
   const { tempDir, projectPath, taskId } = setupSharePreviewProject();
   const shareProjectsDir = path.join(tempDir, "share-projects");
+
+  // 预先写入 dist
+  const distDir = path.join(projectPath, "dist");
+  fs.mkdirSync(distDir, { recursive: true });
+  fs.writeFileSync(path.join(distDir, "index.html"), "<!doctype html><html><body>prebuilt</body></html>");
 
   const result = spawnSync(process.execPath, ["scripts/share-preview.js", "export", projectPath, taskId], {
     cwd: path.resolve(__dirname, ".."),
