@@ -61,9 +61,21 @@ function discoverApps({ projectsDir }) {
     .readdirSync(projectsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => {
-      const rootDir = path.join(projectsDir, entry.name);
-      const metaFile = path.join(rootDir, "_meta.json");
-      const indexFile = path.join(rootDir, "index.html");
+      const appDir = path.join(projectsDir, entry.name);
+      const currentLink = path.join(appDir, "current");
+      const metaFile = path.join(currentLink, "_meta.json");
+      const indexFile = path.join(currentLink, "index.html");
+
+      // 跳过无 current/ 的目录（旧结构或非 app 目录）
+      let currentStat;
+      try {
+        currentStat = fs.lstatSync(currentLink);
+      } catch {
+        return null;
+      }
+      if (!currentStat.isSymbolicLink() && !currentStat.isDirectory()) {
+        return null;
+      }
 
       if (!fs.existsSync(metaFile) || !fs.existsSync(indexFile)) {
         return null;
@@ -76,6 +88,9 @@ function discoverApps({ projectsDir }) {
             .filter((route) => route && route.prefix && route.upstreamOrigin)
             .sort((left, right) => right.prefix.length - left.prefix.length)
         : [];
+
+      // rootDir 指向 current（软链接），fs 自动跟随解析实际版本目录
+      const rootDir = currentLink;
 
       return {
         appId,
@@ -111,7 +126,18 @@ function readProjectsSignature(projectsDir) {
   const entries = fs
     .readdirSync(projectsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => `${entry.name}:${fs.statSync(path.join(projectsDir, entry.name)).mtimeMs}`)
+    .map((entry) => {
+      const currentLink = path.join(projectsDir, entry.name, "current");
+      try {
+        // 读软链接本身的 mtime（lstatSync 不跟随软链接）
+        // 软链接每次被 renameSync 替换时 mtime 更新，触发 discoverApps 刷新
+        const linkStat = fs.lstatSync(currentLink);
+        return `${entry.name}:${linkStat.mtimeMs}`;
+      } catch {
+        // 无 current 的目录（旧结构）：用目录本身 mtime
+        return `${entry.name}:${fs.statSync(path.join(projectsDir, entry.name)).mtimeMs}`;
+      }
+    })
     .sort();
 
   return `${rootStat.mtimeMs}:${entries.join("|")}`;

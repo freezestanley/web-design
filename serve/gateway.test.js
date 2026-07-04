@@ -54,8 +54,14 @@ function createMemoryLogger() {
 }
 
 function createProject(projectsDir, options = {}) {
-  const versionDir = path.join(projectsDir, options.version || "v202607030001-demo");
   const appId = options.appId || "APP_DEMO_001";
+  const version = options.version || "v202607030001-demo";
+
+  // 新结构：<appId>/versions/<version>/ + <appId>/current -> versions/<version>
+  const appDir = path.join(projectsDir, appId);
+  const versionDir = path.join(appDir, "versions", version);
+  const currentLink = path.join(appDir, "current");
+
   fs.mkdirSync(path.join(versionDir, "assets"), { recursive: true });
   fs.writeFileSync(
     path.join(versionDir, "index.html"),
@@ -87,6 +93,11 @@ function createProject(projectsDir, options = {}) {
       }
     }
   });
+
+  // 创建 current 软链接
+  try { fs.unlinkSync(currentLink); } catch { /* 不存在则忽略 */ }
+  fs.symlinkSync(`versions/${version}`, currentLink);
+
   return versionDir;
 }
 
@@ -1007,6 +1018,26 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
     await selectBUpstream.close();
     await submitUpstream.close();
   }
+});
+
+test("discoverApps skips directories without current symlink (legacy structure)", () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-legacy-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+
+  // 新结构：有 current 软链接
+  createProject(projectsDir, { appId: "APP_NEW" });
+
+  // 旧结构：直接在 <subdir>/ 下放 index.html 和 _meta.json（无 current/）
+  const legacyDir = path.join(projectsDir, "APP_LEGACY");
+  fs.mkdirSync(legacyDir, { recursive: true });
+  fs.writeFileSync(path.join(legacyDir, "index.html"), "<!doctype html><html></html>");
+  writeJson(path.join(legacyDir, "_meta.json"), { appNo: "APP_LEGACY", appName: "legacy" });
+
+  const apps = discoverApps({ projectsDir });
+
+  assert.equal(apps.length, 1);
+  assert.equal(apps[0].appId, "APP_NEW");
 });
 
 test("gateway discovers new apps added after startup without restart", async () => {
