@@ -190,14 +190,13 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
 11. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
    - 禁止直接使用外链 URL 作为最终交付资源
    - `default.jpg` 仅允许临时占位，若进入审计仍未替换，必须在 `audit.md` 中标记为失败项
-12. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path> [--bypass true|false]`
+12. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path> --bypass false`
+   - `--bypass false` 为必传参数，确保启动和 build 均以 `VITE_SSO_BYPASS=false` 执行，与 G8 用户验收环境一致
    - 该脚本负责统一启动 dev preview，并自动治理由 `web-design` 管理过的 Vite 服务
    - 同一 `project-path` 若已有旧的 managed dev preview，启动新服务前必须自动关闭旧服务
    - 全局最多只保留最近 5 个 managed dev preview；超出的最老服务必须自动关闭释放端口
-   - `--bypass` 默认是 `true`；传 `--bypass false` 时必须把 `.env.local` 中的 `VITE_SSO_BYPASS` 显式同步为 `false`，覆盖历史残留值
-   - `.env.local` 由 `.gitignore` 保护，不进仓库；开发预览允许 bypass，但分享预览和发布构建都禁止复用该 bypass
-   - 启动成功后，优先把 `previewGatewayUrl` 发给用户，用户应通过 `serve` 的登录引导地址进入开发预览，而不是直接打开 Vite 原始端口
-   - 分享预览必须走独立导出：`node scripts/share-preview.js export <project-path> <task-id>`；该导出会强制以 `VITE_SSO_BYPASS=false` 执行构建，并把静态快照写入供 `serve` 消费的目录，同时返回 `sharePreviewUrl`
+   - `.env.local` 由 `.gitignore` 保护，不进仓库
+   - 启动成功后取返回值中的 `viteUrl`（Vite 原始端口，如 `http://127.0.0.1:517x`），用于 Step 13 的 CDP 截图和审计
 13. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`
    - 截图预算固定为单次任务最多 1 次
    - 分配为 1 次桌面全页截图
@@ -207,13 +206,12 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 若页面进入 SSO 登录页、鉴权跳转页或未登录态，必须暂停截图与审计，先通知用户完成登录，再继续后续动作
      读取design audit: `references/design_v2/design_audit.md`，禁止绕过
    - 若出现页型错位、白字压复杂图且无遮罩、工具页信息难扫读、营销页无首屏抓手、故事页无章节推进、默认占位图未替换、明显模板味，直接判定 `overall: FAIL`
-14. 🔴 **[必须执行·不可跳过]** 主动在浏览器打开启动的服务,并把访问地址发给用户
+14. 🔴 **[必须执行·不可跳过]** 执行 share-preview 导出，把 serve 访问地址发给用户
    - 本步骤与 CDP 截图无关，token 成本为零，不受上下文压力、截图预算、HANDOFF 状态影响，任何情况不得省略
-   - 执行命令：`open <preview-url>`；若命令失败，必须补发纯文本提示
-   - 若自动打开失败，或用户侧出现”页面拒绝链接”等异常，必须补发一条站在用户视角的手动预览提示
-   - 提示文案严格使用纯文本句式，例如：`请用浏览器打开 127.0.0.1:4173 预览页面。若显示失败如链接被拒绝请回复用浏览器或CDP来重新打开页面。`
-   - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接、富文本链接或”点这里打开”一类表述
-   - 若检测到页面需要 SSO 登录，必须先发送纯文本提示，例如：`当前预览页面需要 SSO 登录，请先在浏览器完成登录。登录完成后回复继续，我再执行后续截图、审计和预览确认。`
+   - 执行命令：`node scripts/share-preview.js export <project-path> <task-id>`
+   - 取返回值中的 `sharePreviewUrl`，执行 `open <sharePreviewUrl>`；若命令失败，必须补发纯文本提示
+   - `sharePreviewUrl` 路径格式为 `/apps/<appId>/`，用户通过 serve 的 SSO 引导访问，体验与发布环境一致
+   - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接
 15. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
     - 执行 `reopen-dev` 后 Gate 回退到 `G6_DEVELOPMENT`
     - **必须重新完整走完 G6→G7（静态审计 PASS）→G8（用户预览确认）→G9，才允许执行 `publish.js`**
@@ -312,7 +310,7 @@ DONE
 - `node scripts/gate.js block <project-path> <task-id> --reason "..."`
 - `node scripts/gate.js unblock <project-path> <task-id>`
 - `node scripts/gate.js reopen-dev <project-path> <task-id> --reason "..."`
-- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path] [--bypass true|false]`
+- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path] [--bypass false]`
 - `node scripts/share-preview.js export <project-path> <task-id> [--output-dir <dir>]`
   - 生成给 `serve` 使用的分享预览快照目录，目录内包含静态构建产物、`manifest.json` 与 `_meta.json`
   - 分享预览构建阶段强制 `VITE_SSO_BYPASS=false`，禁止沿用开发态 `.env.local` 中的 bypass
