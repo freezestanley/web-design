@@ -310,7 +310,7 @@ DONE
 - `node scripts/gate.js block <project-path> <task-id> --reason "..."`
 - `node scripts/gate.js unblock <project-path> <task-id>`
 - `node scripts/gate.js reopen-dev <project-path> <task-id> --reason "..."`
-- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> [project-path] [--bypass false]`
+- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> <project-path> --bypass false`
 - `node scripts/share-preview.js export <project-path> <task-id> [--output-dir <dir>]`
   - 生成给 `serve` 使用的分享预览快照目录，目录内包含静态构建产物、`manifest.json` 与 `_meta.json`
   - 分享预览构建阶段强制 `VITE_SSO_BYPASS=false`，禁止沿用开发态 `.env.local` 中的 bypass
