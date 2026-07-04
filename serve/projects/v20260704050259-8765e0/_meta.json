@@ -1,0 +1,29 @@
+{
+  "owner": "",
+  "appName": "app-center-projects",
+  "appNo": "PROJ9842e0cd2c30eedc",
+  "version": "v20260704050259-8765e0",
+  "description": "应用中心项目概览列表，支持状态筛选、关键词搜索、分页，对接 /app-center/projects 接口",
+  "uploadedBy": "",
+  "exportedAt": 1783141379755,
+  "publishedAt": 1783141379755,
+  "manifest": {
+    "schemaVersion": "1.0",
+    "projectId": "PROJ9842e0cd2c30eedc",
+    "name": "应用中心项目概览列表，支持状态筛选、关键词搜索、分页，对接 /app-center/projects 接口",
+    "entry": "dist/index.html",
+    "owner": "",
+    "proxy": {
+      "routes": [
+        {
+          "prefix": "/app-center",
+          "upstreamOrigin": "https://4336237-za-aigc-harness-studio"
+        },
+        {
+          "prefix": "/openapi",
+          "upstreamOrigin": "http://4335314-za-aigc-harness-studio.test.za.biz"
+        }
+      ]
+    }
+  }
+}

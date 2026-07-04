@@ -1,10 +1,12 @@
 const http = require("node:http");
+const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 const { URL } = require("node:url");
 const { isProcessAlive } = require("../scripts/vitectrl/lib/process");
 
 const { buildPlugin, needsBuild } = require("./plugins/web-design-control-plugin/scripts/build-plugin");
+const { createLogger } = require("./logger");
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -88,6 +90,75 @@ function discoverApps({ projectsDir }) {
     .filter(Boolean);
 }
 
+function buildAppAccessList(baseUrl, apps = []) {
+  if (!baseUrl) {
+    return [];
+  }
+
+  return apps.map((app) => ({
+    appId: app.appId,
+    appName: app.appName,
+    url: `${baseUrl}/apps/${encodeURIComponent(app.appId)}/`
+  }));
+}
+
+function readProjectsSignature(projectsDir) {
+  if (!projectsDir || !fs.existsSync(projectsDir)) {
+    return "missing";
+  }
+
+  const rootStat = fs.statSync(projectsDir);
+  const entries = fs
+    .readdirSync(projectsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => `${entry.name}:${fs.statSync(path.join(projectsDir, entry.name)).mtimeMs}`)
+    .sort();
+
+  return `${rootStat.mtimeMs}:${entries.join("|")}`;
+}
+
+function createAppRegistry(projectsDir, logger, resolveGatewayUrl) {
+  let signature = null;
+  let snapshot = {
+    apps: [],
+    appMap: new Map()
+  };
+
+  return {
+    getSnapshot() {
+      const nextSignature = readProjectsSignature(projectsDir);
+      if (nextSignature === signature) {
+        return snapshot;
+      }
+
+      try {
+        const apps = discoverApps({ projectsDir });
+        snapshot = {
+          apps,
+          appMap: new Map(apps.map((app) => [app.appId, app]))
+        };
+        signature = nextSignature;
+        const baseUrl = typeof resolveGatewayUrl === "function" ? resolveGatewayUrl() : "";
+        logger.info("registry.refreshed", {
+          projectsDir,
+          appCount: apps.length,
+          apps: buildAppAccessList(baseUrl, apps)
+        });
+      } catch {
+        if (signature === null) {
+          snapshot = {
+            apps: [],
+            appMap: new Map()
+          };
+          signature = nextSignature;
+        }
+      }
+
+      return snapshot;
+    }
+  };
+}
+
 function readBody(request) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -157,13 +228,24 @@ function parseCookieHeader(cookieHeader = "") {
     }, {});
 }
 
+function hasPercentEncodedOctets(value = "") {
+  return /%[0-9A-Fa-f]{2}/.test(String(value || ""));
+}
+
 function normalizeSessionValue(rawValue = "") {
   let normalized = String(rawValue || "").trim();
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!hasPercentEncodedOctets(normalized)) {
+      break;
+    }
+
     try {
       const decoded = decodeURIComponent(normalized);
       if (decoded === normalized) {
+        break;
+      }
+      if (!hasPercentEncodedOctets(decoded)) {
         break;
       }
       normalized = decoded;
@@ -173,6 +255,14 @@ function normalizeSessionValue(rawValue = "") {
   }
 
   return normalized;
+}
+
+function buildUserinfoSessionValue(sessionToken = "") {
+  const normalized = normalizeSessionValue(sessionToken);
+  if (!normalized) {
+    return "";
+  }
+  return hasPercentEncodedOctets(normalized) ? normalized : encodeURIComponent(normalized);
 }
 
 function normalizeTokenValue(rawValue = "") {
@@ -285,12 +375,10 @@ async function exchangeTicketForSession(previewAuth, request, requestUrl) {
   }
   const upstreamResponse = await fetch(upstreamUrl, { headers: validate2Headers });
   if (!upstreamResponse.ok) {
-    process.stderr.write(`[debug] validate2 http error: ${upstreamResponse.status}\n`);
     return "";
   }
 
   const payload = await upstreamResponse.json();
-  process.stderr.write(`[debug] validate2 payload: ${JSON.stringify(payload)}\n`);
   // 直接返回原始 result（保留 %2B 等编码），供 userinfo 原样透传
   return payload?.success && payload?.result ? String(payload.result) : "";
 }
@@ -389,19 +477,15 @@ async function validatePreviewSession(previewAuth, request, sessionToken) {
   }
 
   const serviceName = previewAuth.defaultServiceName;
-  // sessionToken 可能是 validate2 返回的原始编码值（如 %2B0y7...），
-  // 不能经过 normalizeSessionValue（decode 后 + 号拼入 query 会变空格，导致 401）
-  // query string 直接透传原始值；header 用 decodeURIComponent 后的纯文本
-  const rawSession = String(sessionToken);
-  process.stderr.write(`[debug] validatePreviewSession rawSession prefix: ${rawSession.slice(0, 20)}\n`);
+  const userinfoSession = buildUserinfoSessionValue(sessionToken);
   const ssoHost = resolveSsoHost(previewAuth, request);
-  const userinfoUrl = `${ssoHost}/userinfo?service=${encodeURIComponent(serviceName)}&encryptedSession=${encodeURIComponent(rawSession)}`;
+  const userinfoUrl = `${ssoHost}/userinfo?service=${encodeURIComponent(serviceName)}&encryptedSession=${userinfoSession}`;
 
   try {
     const userinfoHeaders = {
       Accept: "application/json",
       "X-Service-Name": serviceName,
-      "X-Usercenter-Session": rawSession,
+      "X-Usercenter-Session": userinfoSession,
       "X-Platform-Type": "web",
       "X-Requested-With": "XMLHttpRequest"
     };
@@ -411,15 +495,12 @@ async function validatePreviewSession(previewAuth, request, sessionToken) {
     const response = await fetch(userinfoUrl, { headers: userinfoHeaders });
 
     if (!response.ok) {
-      process.stderr.write(`[debug] userinfo http error: ${response.status}\n`);
       return false;
     }
 
     const payload = await response.json();
-    process.stderr.write(`[debug] userinfo payload: ${JSON.stringify(payload)}\n`);
     return payload?.success === true;
-  } catch (err) {
-    process.stderr.write(`[debug] userinfo exception: ${err.message}\n`);
+  } catch {
     return false;
   }
 }
@@ -665,7 +746,18 @@ function resolveProxyMatch(app, relativePath) {
   };
 }
 
-async function proxyToUpstream({ request, response, upstreamOrigin, targetPath, sessionToken, serviceName }) {
+async function proxyToUpstream({
+  request,
+  response,
+  upstreamOrigin,
+  targetPath,
+  sessionToken,
+  serviceName,
+  logger,
+  requestId,
+  pathName
+}) {
+  const startedAt = Date.now();
   const body = await readBody(request);
   const upstreamUrl = new URL(targetPath, upstreamOrigin);
   const headers = { ...request.headers };
@@ -680,11 +772,25 @@ async function proxyToUpstream({ request, response, upstreamOrigin, targetPath, 
     headers["x-service-name"] = serviceName;
   }
 
-  const upstreamResponse = await fetch(upstreamUrl, {
-    method: request.method,
-    headers,
-    body: body.length ? body : undefined
-  });
+  let upstreamResponse;
+  try {
+    upstreamResponse = await fetch(upstreamUrl, {
+      method: request.method,
+      headers,
+      body: body.length ? body : undefined
+    });
+  } catch (error) {
+    logger.error("proxy.failed", {
+      requestId,
+      method: request.method,
+      path: pathName,
+      upstreamOrigin,
+      targetPath,
+      durationMs: Date.now() - startedAt,
+      error
+    });
+    throw error;
+  }
 
   const responseBody = Buffer.from(await upstreamResponse.arrayBuffer());
   const responseHeaders = {};
@@ -697,6 +803,15 @@ async function proxyToUpstream({ request, response, upstreamOrigin, targetPath, 
 
   response.writeHead(upstreamResponse.status, responseHeaders);
   response.end(responseBody);
+  logger.info("proxy.completed", {
+    requestId,
+    method: request.method,
+    path: pathName,
+    upstreamOrigin,
+    targetPath,
+    statusCode: upstreamResponse.status,
+    durationMs: Date.now() - startedAt
+  });
 }
 
 function getControlTarget(controlProxy, pathname) {
@@ -760,25 +875,56 @@ function ensurePluginBuilt() {
   }
 }
 
-function createHandler(options) {
+function createHandler(options, logger) {
   const runtimeConfig = buildRuntimeConfig(options);
-  const apps = discoverApps({ projectsDir: options.projectsDir });
-  const appMap = new Map(apps.map((app) => [app.appId, app]));
+  const appRegistry = createAppRegistry(options.projectsDir, logger, options.gatewayUrlResolver);
   const previewAuth = normalizePreviewAuth(options);
 
   return async function handler(request, response) {
     const requestUrl = new URL(request.url, `http://${request.headers.host || "127.0.0.1"}`);
+    const requestId = request.headers["x-request-id"] || crypto.randomUUID();
+    const startedAt = Date.now();
+    let routeType = "unknown";
+    let appId = "";
+
+    response.on("finish", () => {
+      logger.info(
+        "request.completed",
+        {
+          requestId,
+          method: request.method,
+          path: requestUrl.pathname,
+          statusCode: response.statusCode,
+          durationMs: Date.now() - startedAt,
+          routeType,
+          appId: appId || undefined
+        },
+        { category: "access" }
+      );
+    });
 
     try {
       const devPreviewRoute = findDevPreviewRoute(requestUrl.pathname);
       if (devPreviewRoute) {
+        routeType = "dev-preview";
         if (!previewAuth.enabled) {
           return sendJson(response, 404, { error: "preview_auth_disabled" });
         }
 
         const authState = await resolvePreviewSession(previewAuth, request, requestUrl);
+        logger.info("auth.session_resolved", {
+          requestId,
+          path: requestUrl.pathname,
+          authSource: authState.authSource,
+          result: authState.sessionToken ? "present" : "missing"
+        });
         const sessionValid = await validatePreviewSession(previewAuth, request, authState.sessionToken);
         if (authState.sessionToken && !sessionValid) {
+          logger.warn("auth.session_invalid", {
+            requestId,
+            path: requestUrl.pathname,
+            authSource: authState.authSource
+          });
           return sendRedirect(
             response,
             buildSsoLoginUrl(previewAuth, request, requestUrl),
@@ -786,6 +932,11 @@ function createHandler(options) {
           );
         }
         if (!authState.sessionToken) {
+          logger.info("auth.session_missing", {
+            requestId,
+            path: requestUrl.pathname,
+            authSource: authState.authSource
+          });
           return sendRedirect(response, buildSsoLoginUrl(previewAuth, request, requestUrl));
         }
         if (authState.shouldRedirectToCleanUrl) {
@@ -810,6 +961,8 @@ function createHandler(options) {
       }
 
       if (requestUrl.pathname === "/apps") {
+        routeType = "apps-index";
+        const { apps } = appRegistry.getSnapshot();
         return sendJson(
           response,
           200,
@@ -826,6 +979,7 @@ function createHandler(options) {
         previewAuth.enabled &&
         (requestUrl.pathname === "/validate2" || requestUrl.pathname === "/userinfo")
       ) {
+        routeType = "sso-proxy";
         const ssoHost = resolveSsoHost(previewAuth, request);
         const targetUrl = new URL(requestUrl.pathname + requestUrl.search, ssoHost);
         const proxyHeaders = {
@@ -853,10 +1007,12 @@ function createHandler(options) {
       }
 
       if (RUNTIME_ASSETS[requestUrl.pathname]) {
+        routeType = "runtime-asset";
         return sendFile(response, RUNTIME_ASSETS[requestUrl.pathname]);
       }
 
       if (requestUrl.pathname.startsWith("/__plugin-dist/")) {
+        routeType = "plugin-dist";
         ensurePluginBuilt();
         const distFile = path.join(PLUGIN_DIR, "dist", requestUrl.pathname.replace("/__plugin-dist/", ""));
         if (fs.existsSync(distFile)) {
@@ -866,14 +1022,31 @@ function createHandler(options) {
       }
 
       if (requestUrl.pathname.startsWith("/__plugin/") || requestUrl.pathname.startsWith("/__control/")) {
+        routeType = "plugin-control";
         let controlAuthState = null;
         if (previewAuth.enabled) {
           controlAuthState = await resolvePreviewSession(previewAuth, request, requestUrl);
+          logger.info("auth.session_resolved", {
+            requestId,
+            path: requestUrl.pathname,
+            authSource: controlAuthState.authSource,
+            result: controlAuthState.sessionToken ? "present" : "missing"
+          });
           const sessionValid = await validatePreviewSession(previewAuth, request, controlAuthState.sessionToken);
           if (controlAuthState.sessionToken && !sessionValid) {
+            logger.warn("auth.session_invalid", {
+              requestId,
+              path: requestUrl.pathname,
+              authSource: controlAuthState.authSource
+            });
             return sendJson(response, 401, { error: "unauthorized" }, buildPreviewSessionClearHeaders(previewAuth));
           }
           if (!controlAuthState.sessionToken) {
+            logger.info("auth.session_missing", {
+              requestId,
+              path: requestUrl.pathname,
+              authSource: controlAuthState.authSource
+            });
             return sendJson(response, 401, { error: "unauthorized" });
           }
           if (controlAuthState.shouldRedirectToCleanUrl) {
@@ -902,16 +1075,20 @@ function createHandler(options) {
           return sendJson(response, 200, buildMockPayload(options, requestUrl.pathname, requestPayload));
         }
 
-        return proxyToUpstream({
+        return await proxyToUpstream({
           request,
           response,
           upstreamOrigin: controlTarget.upstreamOrigin,
           targetPath: `${controlTarget.path || "/"}${requestUrl.search}`,
           sessionToken: controlAuthState?.sessionToken || "",
-          serviceName: previewAuth.defaultServiceName
+          serviceName: previewAuth.defaultServiceName,
+          logger,
+          requestId,
+          pathName: requestUrl.pathname
         });
       }
 
+      const { appMap } = appRegistry.getSnapshot();
       const appMatch = findAppRoute(appMap, requestUrl.pathname);
       if (!appMatch) {
         return sendJson(response, 404, { error: "not_found" });
@@ -924,6 +1101,8 @@ function createHandler(options) {
       }
 
       const app = appMatch.app;
+      appId = app.appId;
+      routeType = `app-${appMatch.mode}`;
       let authState = null;
       const proxyMatch = appMatch.mode === "content" ? resolveProxyMatch(app, appMatch.relativePath) : null;
       const proxyRoute = proxyMatch?.route || null;
@@ -934,8 +1113,20 @@ function createHandler(options) {
             (appMatch.relativePath === "/" || shouldServeSpaFallback(appMatch.relativePath) || proxyRoute)));
       if (requiresPreviewHtmlAuth) {
         authState = await resolvePreviewSession(previewAuth, request, requestUrl);
+        logger.info("auth.session_resolved", {
+          requestId,
+          path: requestUrl.pathname,
+          authSource: authState.authSource,
+          result: authState.sessionToken ? "present" : "missing"
+        });
         const sessionValid = await validatePreviewSession(previewAuth, request, authState.sessionToken);
         if (authState.sessionToken && !sessionValid) {
+          logger.warn("auth.session_invalid", {
+            requestId,
+            path: requestUrl.pathname,
+            authSource: authState.authSource,
+            appId: app.appId
+          });
           if (proxyRoute) {
             return sendJson(response, 401, { error: "unauthorized" }, buildPreviewSessionClearHeaders(previewAuth));
           }
@@ -946,6 +1137,12 @@ function createHandler(options) {
           );
         }
         if (!authState.sessionToken) {
+          logger.info("auth.session_missing", {
+            requestId,
+            path: requestUrl.pathname,
+            authSource: authState.authSource,
+            appId: app.appId
+          });
           if (proxyRoute) {
             return sendJson(response, 401, { error: "unauthorized" });
           }
@@ -970,13 +1167,16 @@ function createHandler(options) {
       }
 
       if (proxyRoute) {
-        return proxyToUpstream({
+        return await proxyToUpstream({
           request,
           response,
           upstreamOrigin: proxyRoute.upstreamOrigin,
           targetPath: `${proxyMatch.targetPath}${requestUrl.search}`,
           sessionToken: authState?.sessionToken || "",
-          serviceName: previewAuth.defaultServiceName
+          serviceName: previewAuth.defaultServiceName,
+          logger,
+          requestId,
+          pathName: requestUrl.pathname
         });
       }
 
@@ -999,6 +1199,14 @@ function createHandler(options) {
 
       return sendJson(response, 404, { error: "asset_not_found" });
     } catch (error) {
+      logger.error("request.failed", {
+        requestId,
+        method: request.method,
+        path: requestUrl.pathname,
+        routeType,
+        appId: appId || undefined,
+        error
+      });
       return sendJson(response, 500, {
         error: "gateway_error",
         message: error.message
@@ -1009,14 +1217,57 @@ function createHandler(options) {
 
 async function startGateway(options) {
   ensurePluginBuilt();
-  const server = http.createServer(createHandler(options));
+  const logger =
+    options.logger ||
+    createLogger({
+      rootDir: options.logDir || ROOT_DIR,
+      level: options.logLevel,
+      service: "web-design-serve-gateway"
+    });
+  let server = null;
+  const gatewayUrlResolver = () => {
+    const address = server?.address();
+    if (!address) {
+      return "";
+    }
+    return `http://${address.address}:${address.port}`;
+  };
+  server = http.createServer(
+    createHandler({
+      ...options,
+      gatewayUrlResolver
+    }, logger)
+  );
   await new Promise((resolve) => server.listen(options.port || 0, options.host || "127.0.0.1", resolve));
   const address = server.address();
+  const gatewayUrl = `http://${address.address}:${address.port}`;
+  const apps = discoverApps({ projectsDir: options.projectsDir });
+  logger.info("gateway.started", {
+    host: address.address,
+    port: address.port,
+    projectsDir: options.projectsDir
+  });
+  logger.info("gateway.apps_available", {
+    appCount: apps.length,
+    apps: buildAppAccessList(gatewayUrl, apps)
+  });
   return {
     host: address.address,
     port: address.port,
-    url: `http://${address.address}:${address.port}`,
-    close: () => new Promise((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())))
+    url: gatewayUrl,
+    close: () =>
+      new Promise((resolve, reject) =>
+        server.close((error) => {
+          if (error) {
+            return reject(error);
+          }
+          logger.info("gateway.stopped", {
+            host: address.address,
+            port: address.port
+          });
+          return resolve();
+        })
+      )
   };
 }
 

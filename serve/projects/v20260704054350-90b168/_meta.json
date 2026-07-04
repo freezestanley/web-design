@@ -1,0 +1,29 @@
+{
+  "owner": "",
+  "appName": "app-center",
+  "appNo": "PROJ47ec5e5b8968a39c",
+  "version": "v20260704054350-90b168",
+  "description": "应用中心项目概览列表，含搜索、状态过滤、分页表格",
+  "uploadedBy": "",
+  "exportedAt": 1783143830023,
+  "publishedAt": 1783143830023,
+  "manifest": {
+    "schemaVersion": "1.0",
+    "projectId": "PROJ47ec5e5b8968a39c",
+    "name": "应用中心项目概览列表，含搜索、状态过滤、分页表格",
+    "entry": "dist/index.html",
+    "owner": "",
+    "proxy": {
+      "routes": [
+        {
+          "prefix": "/app-center",
+          "upstreamOrigin": "http://za-aigc-harness-studio.test.za.biz"
+        },
+        {
+          "prefix": "/openapi",
+          "upstreamOrigin": "http://4335314-za-aigc-harness-studio.test.za.biz"
+        }
+      ]
+    }
+  }
+}

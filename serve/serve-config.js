@@ -10,6 +10,16 @@ function loadJsConfig(configPath) {
   return require(configPath);
 }
 
+function loadParentProjectsDir(cwd) {
+  const parentConfigPath = path.resolve(cwd, "..", "config.js");
+  if (!fs.existsSync(parentConfigPath)) {
+    return undefined;
+  }
+
+  const parentConfig = loadJsonConfig(parentConfigPath);
+  return parentConfig.PROJECTS_DIR;
+}
+
 function loadServeConfig(options = {}) {
   const cwd = path.resolve(options.cwd || __dirname);
   const explicitConfigPath = options.configPath || process.env.GATEWAY_CONFIG;
@@ -30,8 +40,11 @@ function loadServeConfig(options = {}) {
       ? loadJsConfig(resolvedConfigPath)
       : loadJsonConfig(resolvedConfigPath);
 
+  const projectsDir = config.projectsDir || loadParentProjectsDir(cwd);
+
   return {
     ...config,
+    projectsDir,
     __configPath: resolvedConfigPath
   };
 }

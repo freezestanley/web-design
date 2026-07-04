@@ -7,8 +7,12 @@
   "scripts": {
     "build": "node plugins/web-design-control-plugin/scripts/build-plugin.js",
     "start": "node server.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
     "dev": "node plugins/web-design-control-plugin/scripts/preview-server.js",
     "preview": "node plugins/web-design-control-plugin/scripts/preview-server.js",
-    "test": "node --test gateway.test.js plugin-build.test.js serve-config.test.js"
+    "test": "node --test gateway.test.js logger.test.js plugin-build.test.js pm2-config.test.js serve-config.test.js"
+  },
+  "devDependencies": {
+    "pm2": "^7.0.3"
   }
 }

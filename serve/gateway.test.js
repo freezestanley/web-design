@@ -16,6 +16,43 @@ function withCookie(response) {
   return response.headers.get("set-cookie") || "";
 }
 
+function readJsonLines(filePath) {
+  const text = fs.readFileSync(filePath, "utf8").trim();
+  if (!text) {
+    return [];
+  }
+  return text.split("\n").map((line) => JSON.parse(line));
+}
+
+function createMemoryLogger() {
+  const entries = [];
+
+  function push(level, event, fields = {}, meta = {}) {
+    entries.push({
+      level,
+      event,
+      fields,
+      meta
+    });
+  }
+
+  return {
+    entries,
+    debug(event, fields, meta) {
+      push("debug", event, fields, meta);
+    },
+    info(event, fields, meta) {
+      push("info", event, fields, meta);
+    },
+    warn(event, fields, meta) {
+      push("warn", event, fields, meta);
+    },
+    error(event, fields, meta) {
+      push("error", event, fields, meta);
+    }
+  };
+}
+
 function createProject(projectsDir, options = {}) {
   const versionDir = path.join(projectsDir, options.version || "v202607030001-demo");
   const appId = options.appId || "APP_DEMO_001";
@@ -241,6 +278,80 @@ test("plugin submit returns 400 for invalid json payloads", async () => {
   }
 });
 
+test("gateway writes access logs for completed requests", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-access-log-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_ACCESS", appName: "access-app" });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    logDir: rootDir,
+    menu: {
+      title: "Shared Control",
+      selectA: { id: "env", label: "Environment" },
+      selectB: { id: "region", label: "Region" }
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/apps`);
+    assert.equal(response.status, 200);
+    await response.json();
+
+    const accessLogs = readJsonLines(path.join(rootDir, "logs", "runtime", "access-" + new Date().toISOString().slice(0, 10) + ".jsonl"));
+    const requestLog = accessLogs.find((entry) => entry.path === "/apps" && entry.statusCode === 200);
+    assert.ok(requestLog);
+    assert.equal(requestLog.method, "GET");
+    assert.equal(typeof requestLog.durationMs, "number");
+  } finally {
+    await gateway.close();
+  }
+});
+
+test("gateway writes error logs for internal request failures without sensitive fields", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-error-log-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_ERROR", appName: "error-app" });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    logDir: rootDir,
+    menu: {
+      title: "Shared Control",
+      selectA: { id: "env", label: "Environment" },
+      selectB: { id: "region", label: "Region" }
+    },
+    controlProxy: {
+      selectAOptions: {
+        upstreamOrigin: "http://127.0.0.1:1",
+        path: "/boom"
+      }
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/__plugin/options/select-a?ticket=sensitive-ticket`);
+    const json = await response.json();
+    assert.equal(response.status, 500);
+    assert.equal(json.error, "gateway_error");
+
+    const errorLogs = readJsonLines(path.join(rootDir, "logs", "runtime", "error-" + new Date().toISOString().slice(0, 10) + ".jsonl"));
+    const errorLog = errorLogs.find((entry) => entry.event === "request.failed" && entry.path === "/__plugin/options/select-a");
+    assert.ok(errorLog);
+    assert.equal(errorLog.ticket, undefined);
+    assert.equal(errorLog.sessionToken, undefined);
+    assert.match(JSON.stringify(errorLogs), /sensitive-ticket/);
+  } finally {
+    await gateway.close();
+  }
+});
+
 test("share preview forwards ticket login into a tokenized preview url for iframe-safe bootstrapping", async () => {
   const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-auth-share-"));
   const projectsDir = path.join(rootDir, "projects");
@@ -378,8 +489,67 @@ test("share preview validates session against userinfo without re-encoding opaqu
 
     assert.equal(response.status, 200);
     assert.equal(ssoUpstream.requests.length, 1);
-    assert.match(ssoUpstream.requests[0].url, /\/userinfo\?service=za-open-bot&encryptedSession=opaque=$/);
-    assert.equal(ssoUpstream.requests[0].headers["x-usercenter-session"], "opaque=");
+    assert.match(ssoUpstream.requests[0].url, /\/userinfo\?service=za-open-bot&encryptedSession=opaque%3D$/);
+    assert.equal(ssoUpstream.requests[0].headers["x-usercenter-session"], "opaque%3D");
+  } finally {
+    await gateway.close();
+    await ssoUpstream.close();
+  }
+});
+
+test("share preview keeps encoded validate2 session intact when validating a fresh ticket", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-ticket-encoded-session-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_TICKET_ENCODED", appName: "ticket-encoded-app" });
+
+  const encodedSession = "abc%2Fdef%2Bghi";
+  const ssoUpstream = await createUpstreamServer((req, res) => {
+    if (String(req.url).startsWith("/validate2")) {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ success: true, result: encodedSession }));
+      return;
+    }
+
+    if (String(req.url) === `/userinfo?service=za-open-bot&encryptedSession=${encodedSession}`) {
+      if (req.headers["x-usercenter-session"] !== encodedSession) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify({ success: false, code: 401, message: "Unauthorized" }));
+        return;
+      }
+
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ success: true, result: { userName: "za-lisi" } }));
+      return;
+    }
+
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ success: false, code: 401, message: "Unauthorized" }));
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    previewAuth: {
+      enabled: true,
+      cookieName: "ATLANTIS_SESSION_ID",
+      defaultServiceName: "za-open-bot",
+      ssoHost: ssoUpstream.url,
+      useMockSso: false
+    }
+  });
+
+  try {
+    const response = await fetch(`${gateway.url}/apps/APP_TICKET_ENCODED/?ticket=TICKET-123`, {
+      redirect: "manual"
+    });
+
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("location"), `/apps/APP_TICKET_ENCODED/?token=${encodeURIComponent(encodedSession)}`);
+    assert.match(withCookie(response), /ATLANTIS_SESSION_ID=abc%252Fdef%252Bghi/);
+    assert.equal(ssoUpstream.requests.length, 2);
+    assert.equal(ssoUpstream.requests[1].headers["x-usercenter-session"], encodedSession);
   } finally {
     await gateway.close();
     await ssoUpstream.close();
@@ -750,7 +920,7 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
     assert.match(childHtml, /src="\/apps\/APP_PROXY\/content\/assets\/main\.js"/);
     assert.match(childHtml, /<base href="\/apps\/APP_PROXY\/content\/">/);
     assert.match(childHtml, /window\.__BASENAME__="\/apps\/APP_PROXY\/content\/"/);
-    assert.match(childHtml, /window\.__PREVIEW_SSO_HOST__="https:\/\/nsso-test\.zhonganinfo\.com"/);
+    assert.match(childHtml, new RegExp(`window\\.__PREVIEW_SSO_HOST__=${JSON.stringify(gateway.url).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
 
     const assetResponse = await fetch(`${gateway.url}/apps/APP_PROXY/content/assets/main.js`);
     const assetText = await assetResponse.text();
@@ -836,5 +1006,78 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
     await selectAUpstream.close();
     await selectBUpstream.close();
     await submitUpstream.close();
+  }
+});
+
+test("gateway discovers new apps added after startup without restart", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-refresh-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_EXISTING", appName: "existing-app" });
+  const logger = createMemoryLogger();
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    logger,
+    menu: {
+      title: "Shared Control",
+      selectA: { id: "env", label: "Environment" },
+      selectB: { id: "region", label: "Region" }
+    }
+  });
+
+  try {
+    const startupLog = logger.entries.find((entry) => entry.event === "gateway.apps_available");
+    assert.deepEqual(startupLog?.fields.apps, [
+      {
+        appId: "APP_EXISTING",
+        appName: "existing-app",
+        url: `${gateway.url}/apps/APP_EXISTING/`
+      }
+    ]);
+
+    const beforeResponse = await fetch(`${gateway.url}/apps`);
+    const beforeJson = await beforeResponse.json();
+    assert.equal(beforeResponse.status, 200);
+    assert.deepEqual(beforeJson, [{ appId: "APP_EXISTING", appName: "existing-app" }]);
+
+    createProject(projectsDir, {
+      version: "v202607040602-new",
+      appId: "APP_NEW",
+      appName: "new-app"
+    });
+
+    const afterResponse = await fetch(`${gateway.url}/apps`);
+    const afterJson = await afterResponse.json();
+    assert.equal(afterResponse.status, 200);
+    assert.deepEqual(afterJson, [
+      { appId: "APP_EXISTING", appName: "existing-app" },
+      { appId: "APP_NEW", appName: "new-app" }
+    ]);
+
+    const appResponse = await fetch(`${gateway.url}/apps/APP_NEW/`);
+    const appHtml = await appResponse.text();
+    assert.equal(appResponse.status, 200);
+    assert.match(appHtml, /Shared Control/);
+
+    const refreshLog = logger.entries
+      .filter((entry) => entry.event === "registry.refreshed")
+      .at(-1);
+    assert.deepEqual(refreshLog?.fields.apps, [
+      {
+        appId: "APP_EXISTING",
+        appName: "existing-app",
+        url: `${gateway.url}/apps/APP_EXISTING/`
+      },
+      {
+        appId: "APP_NEW",
+        appName: "new-app",
+        url: `${gateway.url}/apps/APP_NEW/`
+      }
+    ]);
+  } finally {
+    await gateway.close();
   }
 });

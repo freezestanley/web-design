@@ -4,7 +4,7 @@
 
 这个目录包含两部分：
 
-- 一个本地 Node 网关，用于托管 `projects/` 下的静态子应用
+- 一个本地 Node 网关，用于托管共享 `PROJECTS_DIR` 下的静态子应用
 - 一个前端插件脚手架，位于 `plugins/web-design-control-plugin/`
 
 网关会把构建后的前端插件注入到子应用页面中。日常 UI 开发应放在插件脚手架内完成，而不是直接修改 `gateway.js`。
@@ -45,6 +45,7 @@ npm run preview
 npm run build
 npm run test
 npm run start
+npm run pm2:start
 ```
 
 命令说明：
@@ -53,6 +54,7 @@ npm run start
 - `npm run build`：将前端插件构建到 `plugins/web-design-control-plugin/dist/`
 - `npm run test`：执行网关和插件构建相关测试
 - `npm run start`：启动网关，用于托管 `projects/` 下的真实子应用
+- `npm run pm2:start`：以 `pm2` 常驻方式启动网关，用于稳定托管分享预览
 
 ## 与 web-design 的关系
 
@@ -66,6 +68,7 @@ npm run start
   - `manifest.json`
   - `_meta.json`
 - `serve` 再从该目录读取 `manifest.proxy.routes`，为分享态页面提供代理和插件注入
+- 网关会在运行时自动刷新共享目录下的子应用列表，新快照写入 `PROJECTS_DIR` 后无需重启网关
 - `serve` 还负责统一的预览登录引导：
   - 开发预览登录入口：`/preview/dev/<project-name>/`
   - 分享预览登录入口：`/apps/<appId>/`
@@ -95,6 +98,28 @@ npm run start
 如果 `.env.js` 不存在，则回退读取：
 
 `./config.example.json`
+
+若当前配置文件没有显式提供 `projectsDir`，`serve` 会自动回退到上级 `../config.js` 中的 `PROJECTS_DIR`，避免在 `serve/projects/` 和共享目录之间维护两份子应用。
+
+## PM2 运维
+
+推荐在 `serve/` 目录使用：
+
+```bash
+npm run pm2:start
+pm2 status web-design-serve-gateway
+pm2 logs web-design-serve-gateway
+pm2 restart web-design-serve-gateway
+```
+
+说明：
+
+- `pm2` 只负责网关进程保活和异常重启
+- 子应用目录发现由网关内部自动刷新处理，不依赖 `pm2 reload`
+- `ecosystem.config.cjs` 的入口固定为 `server.js`
+- 网关启动成功后会输出 `gateway.apps_available` 日志，列出当前可访问的子应用 URL
+- 当共享目录新增或更新子应用后，首次请求触发刷新时会输出 `registry.refreshed` 日志，并附带最新地址列表
+- 运行期应用日志说明见 [docs/logging.md](/Users/za-stanlexu/my-marketplace-skills/plugins/coding/web-design/serve/docs/logging.md:1)
 
 ## 可视化开发
 
@@ -127,5 +152,5 @@ npm run start
 
 - 不要把可编辑的插件 UI 逻辑重新写回 `gateway.js`
 - 不要手动修改 `dist/`
-- 默认启动读取 `config.example.json`，当前插件接口会返回 mock 数据
+- 默认启动优先读取 `.env.js`；缺失时再回退到 `config.example.json`
 - 如果预览或网关启动时报 `EADDRINUSE`，请更换端口或停止占用端口的进程

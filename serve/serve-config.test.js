@@ -67,3 +67,39 @@ test("loadServeConfig falls back to JSON config when .env.js is not present", ()
   assert.equal(config.projectsDir, "./projects");
   assert.equal(config.__configPath.endsWith("config.example.json"), true);
 });
+
+test("loadServeConfig derives projectsDir from ../config.js when loaded config omits it", () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-serve-config-parent-fallback-"));
+  const parentDir = path.join(rootDir, "parent");
+  const serveDir = path.join(parentDir, "serve");
+
+  fs.mkdirSync(serveDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(parentDir, "config.js"),
+    JSON.stringify(
+      {
+        PROJECTS_DIR: "/tmp/shared-preview-projects"
+      },
+      null,
+      2
+    )
+  );
+  fs.writeFileSync(
+    path.join(serveDir, "config.example.json"),
+    JSON.stringify(
+      {
+        host: "127.0.0.1",
+        port: 4176
+      },
+      null,
+      2
+    )
+  );
+
+  const config = loadServeConfig({ cwd: serveDir });
+
+  assert.equal(config.host, "127.0.0.1");
+  assert.equal(config.port, 4176);
+  assert.equal(config.projectsDir, "/tmp/shared-preview-projects");
+  assert.equal(config.__configPath.endsWith("config.example.json"), true);
+});
