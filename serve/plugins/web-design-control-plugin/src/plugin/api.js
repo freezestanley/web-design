@@ -8,23 +8,30 @@ plugin.requestJson = async function requestJson(url, init, fetchImpl) {
 };
 
 plugin.createApiClient = function createApiClient(options, fetchImpl) {
+  var ep = options.shareEndpoints;
   return {
-    loadSelectA: function loadSelectA() {
-      return plugin.requestJson(options.endpoints.selectAOptions, { method: "GET" }, fetchImpl);
-    },
-    loadSelectB: function loadSelectB() {
-      return plugin.requestJson(options.endpoints.selectBOptions, { method: "GET" }, fetchImpl);
-    },
-    submit: function submit(payload) {
+    loadShareConfig: function loadShareConfig(appId) {
       return plugin.requestJson(
-        options.endpoints.submit,
+        ep.config + "?appId=" + encodeURIComponent(appId),
+        { method: "GET" },
+        fetchImpl
+      );
+    },
+    submitShare: function submitShare(appId, payload) {
+      return plugin.requestJson(
+        ep.submit,
         {
           method: "POST",
-          headers: {
-            "content-type": "application/json"
-          },
-          body: JSON.stringify(payload)
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ appId: appId, shareType: payload.shareType, members: payload.members })
         },
+        fetchImpl
+      );
+    },
+    searchUsers: function searchUsers(q) {
+      return plugin.requestJson(
+        ep.searchUsers + "?q=" + encodeURIComponent(q),
+        { method: "GET" },
         fetchImpl
       );
     }

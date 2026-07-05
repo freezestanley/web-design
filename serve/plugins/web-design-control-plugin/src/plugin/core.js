@@ -2,41 +2,26 @@ plugin.instances = new Map();
 
 plugin.defaultOptions = {
   title: "Shared Control",
-  labels: {
-    selectA: "Select A",
-    selectB: "Select B",
-    submit: "Submit"
-  },
-  endpoints: {
-    selectAOptions: "/__plugin/options/select-a",
-    selectBOptions: "/__plugin/options/select-b",
-    submit: "/__plugin/submit"
+  shareEndpoints: {
+    config: "/__plugin/share/config",
+    submit: "/__plugin/share/submit",
+    searchUsers: "/__plugin/share/search-users"
   },
   mode: "inline"
 };
 
 plugin.mergeOptions = function mergeOptions(options) {
   var raw = options || {};
+  var se = raw.shareEndpoints || {};
+  var def = plugin.defaultOptions.shareEndpoints;
   return {
     appId: raw.appId || "preview-app",
     currentPath: raw.currentPath || "/preview",
     title: raw.title || plugin.defaultOptions.title,
-    labels: {
-      selectA: raw.labels && raw.labels.selectA ? raw.labels.selectA : plugin.defaultOptions.labels.selectA,
-      selectB: raw.labels && raw.labels.selectB ? raw.labels.selectB : plugin.defaultOptions.labels.selectB,
-      submit: raw.labels && raw.labels.submit ? raw.labels.submit : plugin.defaultOptions.labels.submit
-    },
-    endpoints: {
-      selectAOptions:
-        raw.endpoints && raw.endpoints.selectAOptions
-          ? raw.endpoints.selectAOptions
-          : plugin.defaultOptions.endpoints.selectAOptions,
-      selectBOptions:
-        raw.endpoints && raw.endpoints.selectBOptions
-          ? raw.endpoints.selectBOptions
-          : plugin.defaultOptions.endpoints.selectBOptions,
-      submit:
-        raw.endpoints && raw.endpoints.submit ? raw.endpoints.submit : plugin.defaultOptions.endpoints.submit
+    shareEndpoints: {
+      config:       se.config       || def.config,
+      submit:       se.submit       || def.submit,
+      searchUsers:  se.searchUsers  || def.searchUsers
     },
     mode: raw.mode || plugin.defaultOptions.mode
   };
