@@ -793,6 +793,9 @@ async function proxyToUpstream({
   if (!body.length) {
     delete headers["content-length"];
   }
+  if (rawBody !== undefined) {
+    headers["content-length"] = String(rawBody.length);
+  }
   if (sessionToken && !headers["x-usercenter-session"]) {
     headers["x-usercenter-session"] = sessionToken;
   }
@@ -1099,7 +1102,7 @@ function createHandler(options, logger) {
             request, response,
             upstreamOrigin: shareProxy.ucOrigin,
             targetPath: `${ucBase}/user?username=${encodeURIComponent(q)}`,
-            sessionToken: "",
+            sessionToken: request.headers["x-usercenter-session"] || "",
             serviceName: "",
             logger, requestId,
             pathName: requestUrl.pathname
@@ -1119,7 +1122,7 @@ function createHandler(options, logger) {
             request, response,
             upstreamOrigin: shareProxy.appCenterOrigin,
             targetPath: `${appCenterBase}/projects/${encodeURIComponent(qAppId)}/share`,
-            sessionToken: "",
+            sessionToken: request.headers["x-usercenter-session"] || "",
             serviceName: "",
             logger, requestId,
             pathName: requestUrl.pathname
@@ -1136,7 +1139,7 @@ function createHandler(options, logger) {
           request, response,
           upstreamOrigin: shareProxy.appCenterOrigin,
           targetPath: `${appCenterBase}/projects/${encodeURIComponent(submitAppId)}/share`,
-          sessionToken: "",
+          sessionToken: request.headers["x-usercenter-session"] || "",
           serviceName: "",
           logger, requestId,
           pathName: requestUrl.pathname,
