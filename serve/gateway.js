@@ -122,7 +122,6 @@ function readProjectsSignature(projectsDir) {
     return "missing";
   }
 
-  const rootStat = fs.statSync(projectsDir);
   const entries = fs
     .readdirSync(projectsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -140,7 +139,9 @@ function readProjectsSignature(projectsDir) {
     })
     .sort();
 
-  return `${rootStat.mtimeMs}:${entries.join("|")}`;
+  // 签名包含目录名集合本身：新子目录出现时名称列表必然变化，
+  // 不再依赖根目录 mtime（macOS 秒级精度会导致同秒创建不触发刷新）
+  return entries.join("|");
 }
 
 function createAppRegistry(projectsDir, logger, resolveGatewayUrl) {
@@ -853,6 +854,27 @@ function getControlTarget(controlProxy, pathname) {
   return null;
 }
 
+function getShareRouteType(pathname) {
+  if (pathname === "/__plugin/share/config")        return "config";
+  if (pathname === "/__plugin/share/submit")        return "submit";
+  if (pathname === "/__plugin/share/search-users")  return "search-users";
+  return null;
+}
+
+function buildShareMockPayload(routeType, requestPayload, searchParams) {
+  if (routeType === "config") {
+    return { shareType: "SPECIFIC", members: [] };
+  }
+  if (routeType === "submit") {
+    return { accepted: true, mock: true, received: requestPayload };
+  }
+  if (routeType === "search-users") {
+    var q = searchParams.get("q") || "";
+    return [{ username: "mock-" + (q || "user"), name: "Mock " + (q || "User") }];
+  }
+  return null;
+}
+
 function buildMockPayload(options, pathname, requestPayload) {
   const pluginMock = options.pluginMock || {};
 
@@ -1045,6 +1067,79 @@ function createHandler(options, logger) {
           return sendFile(response, distFile);
         }
         return sendJson(response, 404, { error: "dist_asset_not_found" });
+      }
+
+      if (requestUrl.pathname.startsWith("/__plugin/share/")) {
+        routeType = "plugin-share";
+        const shareRouteType = getShareRouteType(requestUrl.pathname);
+        if (!shareRouteType) {
+          return sendJson(response, 404, { error: "unsupported_share_route", pathname: requestUrl.pathname });
+        }
+        const isSubmit = shareRouteType === "submit";
+        if (isSubmit && request.method !== "POST") {
+          return sendJson(response, 405, { error: "method_not_allowed" });
+        }
+        if (!isSubmit && request.method !== "GET") {
+          return sendJson(response, 405, { error: "method_not_allowed" });
+        }
+
+        const shareProxy = options.shareProxy || {};
+        const hasAppCenter = shareProxy.appCenterOrigin;
+        const hasUc = shareProxy.ucOrigin;
+
+        // search-users → UC 代理
+        if (shareRouteType === "search-users") {
+          if (!hasUc) {
+            return sendJson(response, 200, buildShareMockPayload("search-users", null, requestUrl.searchParams));
+          }
+          const q = requestUrl.searchParams.get("q") || "";
+          const ucBase = shareProxy.ucBasePath || "/admin/uc";
+          return proxyToUpstream({
+            request, response,
+            upstreamOrigin: shareProxy.ucOrigin,
+            targetPath: `${ucBase}/user?username=${encodeURIComponent(q)}`,
+            sessionToken: "",
+            serviceName: "",
+            logger, requestId,
+            pathName: requestUrl.pathname
+          });
+        }
+
+        // config + submit → app-center 代理
+        if (!hasAppCenter) {
+          const payload = isSubmit ? await parseJsonBody(request) : null;
+          return sendJson(response, 200, buildShareMockPayload(shareRouteType, payload, requestUrl.searchParams));
+        }
+
+        const appCenterBase = shareProxy.appCenterBasePath || "/app-center";
+        if (shareRouteType === "config") {
+          const qAppId = requestUrl.searchParams.get("appId") || "";
+          return proxyToUpstream({
+            request, response,
+            upstreamOrigin: shareProxy.appCenterOrigin,
+            targetPath: `${appCenterBase}/projects/${encodeURIComponent(qAppId)}/share`,
+            sessionToken: "",
+            serviceName: "",
+            logger, requestId,
+            pathName: requestUrl.pathname
+          });
+        }
+
+        // submit
+        const submitBody = await parseJsonBody(request);
+        if (!submitBody) {
+          return sendJson(response, 400, { error: "invalid_json" });
+        }
+        const submitAppId = submitBody.appId || "";
+        return proxyToUpstream({
+          request, response,
+          upstreamOrigin: shareProxy.appCenterOrigin,
+          targetPath: `${appCenterBase}/projects/${encodeURIComponent(submitAppId)}/share`,
+          sessionToken: "",
+          serviceName: "",
+          logger, requestId,
+          pathName: requestUrl.pathname
+        });
       }
 
       if (requestUrl.pathname.startsWith("/__plugin/") || requestUrl.pathname.startsWith("/__control/")) {
