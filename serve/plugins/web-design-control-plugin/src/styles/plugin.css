@@ -1,7 +1,7 @@
+/* ── reset ─────────────────────────────────────────── */
 .wdp-root {
   box-sizing: border-box;
 }
-
 .wdp-root *,
 .wdp-root *::before,
 .wdp-root *::after {
@@ -14,82 +14,273 @@
   right: 16px;
   z-index: 2147483647;
 }
-
 .wdp-root--header {
   width: 100%;
 }
 
-.wdp-shell {
-  display: grid;
-  gap: 10px;
-  min-width: 220px;
-  padding: 14px;
-  border-radius: 14px;
-  background: rgba(15, 23, 42, 0.92);
-  color: #f8fafc;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.24);
+/* ── action bar ─────────────────────────────────────── */
+.wdp-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
-.wdp-root--header .wdp-shell {
-  width: 100%;
-  min-width: 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto auto;
-  align-items: end;
-}
-
-.wdp-root--header .wdp-title {
-  grid-column: 1 / -1;
-}
-
-.wdp-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.wdp-field {
-  display: grid;
+/* ── shared button base ────────────────────────────── */
+.wdp-btn {
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
-}
-
-.wdp-field-label {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.wdp-select,
-.wdp-button {
-  height: 36px;
-  border: 0;
+  height: 32px;
+  padding: 0 14px;
+  border: none;
   border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.wdp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.wdp-select {
-  padding: 0 10px;
+.wdp-btn--publish {
+  background: #22c55e;
+  color: #052e16;
+}
+.wdp-btn--publish:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.wdp-btn--share {
+  background: #eef2ff;
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+}
+.wdp-btn--share:hover:not(:disabled) {
+  background: #e0e7ff;
+}
+
+.wdp-btn--cancel {
+  background: #f1f5f9;
+  color: #475569;
+}
+.wdp-btn--cancel:hover:not(:disabled) {
   background: #e2e8f0;
+}
+
+.wdp-btn--ok {
+  background: #4f46e5;
+  color: #fff;
+}
+.wdp-btn--ok:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+/* ── overlay ────────────────────────────────────────── */
+.wdp-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483646;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── dialog ─────────────────────────────────────────── */
+.wdp-share-dialog {
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.wdp-share-dialog__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.wdp-share-dialog__title {
+  font-size: 15px;
+  font-weight: 700;
   color: #0f172a;
 }
 
-.wdp-button {
-  background: #22c55e;
-  color: #052e16;
-  font-weight: 700;
+.wdp-share-dialog__close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.wdp-share-dialog__close:hover { color: #475569; }
+
+.wdp-share-dialog__body {
+  position: relative;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wdp-share-dialog__loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #64748b;
+  border-radius: 0 0 0 0;
+}
+
+.wdp-share-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ── form ────────────────────────────────────────────── */
+.wdp-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wdp-form-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.wdp-radio-group {
+  display: flex;
+  gap: 8px;
+}
+
+.wdp-radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+.wdp-radio-option:has(input:checked) {
+  background: #4f46e5;
+  color: #fff;
+  border-color: #4f46e5;
+}
+
+.wdp-global-hint {
+  margin: 0;
+  padding: 8px 12px;
+  background: #eef2ff;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #4338ca;
+}
+
+/* ── tags ────────────────────────────────────────────── */
+.wdp-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 0;
+}
+
+.wdp-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.wdp-tag__del {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+.wdp-tag__del:hover { color: #ef4444; }
+
+/* ── search ──────────────────────────────────────────── */
+.wdp-search-wrap {
+  position: relative;
+}
+
+.wdp-search-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  outline: none;
+}
+.wdp-search-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.wdp-search-input--error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.wdp-search-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.wdp-dropdown-item {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #334155;
   cursor: pointer;
 }
-
-.wdp-status {
-  min-height: 16px;
-  font-size: 12px;
-  opacity: 0.8;
+.wdp-dropdown-item:hover {
+  background: #f8fafc;
 }
-
-.wdp-status[data-tone="error"] {
-  color: #fca5a5;
-  opacity: 1;
+.wdp-dropdown-item--selected {
+  color: #94a3b8;
+  cursor: default;
 }
-
-.wdp-status[data-tone="success"] {
-  color: #86efac;
-  opacity: 1;
+.wdp-dropdown-item--loading {
+  color: #94a3b8;
+  font-style: italic;
+  cursor: default;
 }
