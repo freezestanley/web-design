@@ -22,7 +22,9 @@
 .wdp-action-bar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  padding: 0;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -30,7 +32,7 @@
 .wdp-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   height: 32px;
   padding: 0 14px;
   border: none;
@@ -40,6 +42,13 @@
   cursor: pointer;
   transition: opacity 0.15s;
 }
+.wdp-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+}
 .wdp-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -47,19 +56,19 @@
 
 .wdp-btn--publish {
   background: #22c55e;
-  color: #052e16;
+  color: #fff;
 }
 .wdp-btn--publish:hover:not(:disabled) {
   background: #16a34a;
 }
 
 .wdp-btn--share {
-  background: #eef2ff;
-  color: #4338ca;
-  border: 1px solid #c7d2fe;
+  background: #fff;
+  color: #000;
+  border: 1px solid #d1d5db;
 }
 .wdp-btn--share:hover:not(:disabled) {
-  background: #e0e7ff;
+  background: #f5f5f5;
 }
 
 .wdp-btn--cancel {
@@ -218,15 +227,21 @@
 }
 
 .wdp-tag__del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
-  font-size: 14px;
+  width: 14px;
+  height: 14px;
   color: #94a3b8;
   cursor: pointer;
   padding: 0;
   line-height: 1;
+  flex-shrink: 0;
+  border-radius: 3px;
 }
-.wdp-tag__del:hover { color: #ef4444; }
+.wdp-tag__del:hover { color: #ef4444; background: rgba(239, 68, 68, 0.08); }
 
 /* ── search ──────────────────────────────────────────── */
 .wdp-search-wrap {
@@ -234,7 +249,7 @@
 }
 
 .wdp-search-input {
-  width: 100%;
+  width: 95%;
   height: 36px;
   padding: 0 12px;
   border: 1px solid #e2e8f0;

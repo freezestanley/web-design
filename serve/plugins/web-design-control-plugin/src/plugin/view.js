@@ -8,14 +8,34 @@ plugin.render = function render(container, options, apiClient) {
   // ── 顶层 action bar ──────────────────────────────────────────────
   var bar = plugin.createElement("div", "wdp-action-bar");
 
-  var publishBtn = plugin.createElement("button", "wdp-btn wdp-btn--publish", "发布");
+  var publishBtn = plugin.createElement("button", "wdp-btn wdp-btn--publish");
   publishBtn.type = "button";
+  publishBtn.innerHTML = [
+    '<span class="wdp-btn__icon" aria-hidden="true">',
+    '<svg viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" width="15" height="15">',
+    '<path d="M7.5 1L13 7.5M7.5 1L2 7.5M7.5 1v10M2 13h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
+    '</svg>',
+    '</span>',
+    '<span>发布</span>'
+  ].join("");
   publishBtn.addEventListener("click", function () {
     // TODO: 发布接口待补充
   });
 
-  var shareBtn = plugin.createElement("button", "wdp-btn wdp-btn--share", "分享");
+  var shareBtn = plugin.createElement("button", "wdp-btn wdp-btn--share");
   shareBtn.type = "button";
+  shareBtn.innerHTML = [
+    '<span class="wdp-btn__icon" aria-hidden="true">',
+    '<svg viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" width="15" height="15">',
+    '<path d="M10 2.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zm0 0" stroke="none"/>',
+    '<circle cx="10" cy="4" r="2" stroke="currentColor" stroke-width="1.3"/>',
+    '<circle cx="5" cy="7.5" r="2" stroke="currentColor" stroke-width="1.3"/>',
+    '<circle cx="10" cy="11" r="2" stroke="currentColor" stroke-width="1.3"/>',
+    '<path d="M7 6.5l2.2-1.5M7 8.5l2.2 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>',
+    '</svg>',
+    '</span>',
+    '<span>分享</span>'
+  ].join("");
 
   bar.appendChild(publishBtn);
   bar.appendChild(shareBtn);
@@ -120,13 +140,19 @@ plugin.render = function render(container, options, apiClient) {
   function renderTags() {
     tagsRow.innerHTML = "";
     state.accounts.forEach(function (acc) {
-      var tag = plugin.createElement("span", "wdp-tag", acc.label);
-      var del = plugin.createElement("button", "wdp-tag__del", "×");
+      var tag = plugin.createElement("span", "wdp-tag");
+      var nameSpan = plugin.createElement("span", "", acc.label);
+      var del = document.createElement("button");
       del.type = "button";
+      del.className = "wdp-tag__del";
+      del.setAttribute("aria-label", "移除 " + acc.label);
+      del.innerHTML = '<svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" width="12" height="12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
       del.addEventListener("click", function () {
         state.accounts = state.accounts.filter(function (a) { return a.value !== acc.value; });
         renderTags();
+        renderDropdown();
       });
+      tag.appendChild(nameSpan);
       tag.appendChild(del);
       tagsRow.appendChild(tag);
     });
@@ -152,10 +178,9 @@ plugin.render = function render(container, options, apiClient) {
           state.accounts.push(user);
           // 同步 userCache
           if (user._raw) state.userCache[user.value] = user._raw;
-          searchInput.value = "";
-          state.searchResults = [];
-          searchDropdown.style.display = "none";
+          // 保持搜索框和 dropdown，让用户可继续选人；重新渲染 dropdown 更新已选状态
           renderTags();
+          renderDropdown();
         });
       }
       searchDropdown.appendChild(item);
@@ -200,7 +225,7 @@ plugin.render = function render(container, options, apiClient) {
     searchTimer = setTimeout(async function () {
       try {
         var users = await apiClient.searchUsers(q);
-        // users: [{username, name, ...}]
+        // users: [{username, name, companyName, primaryDepartmentName, ...}]（已规范化为数组）
         state.searchResults = users.map(function (u) {
           return {
             value: u.username,

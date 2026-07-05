@@ -28,12 +28,17 @@ plugin.createApiClient = function createApiClient(options, fetchImpl) {
         fetchImpl
       );
     },
-    searchUsers: function searchUsers(q) {
-      return plugin.requestJson(
+    searchUsers: async function searchUsers(q) {
+      var raw = await plugin.requestJson(
         ep.searchUsers + "?q=" + encodeURIComponent(q),
         { method: "GET" },
         fetchImpl
       );
+      // UC 真实格式：{ data: {username, name, ...}, code: "200", success: true }
+      // mock 格式（兜底）：[{username, name, ...}]
+      if (Array.isArray(raw)) return raw;
+      if (raw && raw.data) return [raw.data];
+      return [];
     }
   };
 };

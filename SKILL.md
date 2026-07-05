@@ -208,6 +208,7 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 若出现页型错位、白字压复杂图且无遮罩、工具页信息难扫读、营销页无首屏抓手、故事页无章节推进、默认占位图未替换、明显模板味，直接判定 `overall: FAIL`
 14. 🔴 **[必须执行·不可跳过]** 执行 share-preview 导出，把 serve 访问地址发给用户
    - 本步骤与 CDP 截图无关，token 成本为零，不受上下文压力、截图预算、HANDOFF 状态影响，任何情况不得省略
+   - 🔴 禁止以任何理由跳过：无论是新建页面、续改页面、小幅修改、样式调整、纯文案改动，还是 agent 自判"用户已知道链接"，均不构成豁免条件
    - 执行命令：`node scripts/share-preview.js export <project-path> <task-id>`
    - 取返回值中的 `sharePreviewUrl`，执行 `open <sharePreviewUrl>`；若命令失败，必须补发纯文本提示
    - `sharePreviewUrl` 路径格式为 `/apps/<appId>/`，用户通过 serve 的 SSO 引导访问，体验与发布环境一致

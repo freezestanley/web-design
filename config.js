@@ -1,5 +1,5 @@
 {
-  "PROJECTS_DIR": "/Users/za-stanlexu/Desktop/ff/g/projects",
+  "PROJECTS_DIR": "/Users/za-stanlexu/Desktop/ff/h/projects",
   "WEBDESIGN_DIR": ".webdesign",
   "TASKS_DIR": "tasks",
   "WORKFLOW_VERSION": "v1",

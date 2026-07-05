@@ -565,7 +565,12 @@ function buildContentBaseInjection(appId, ssoHost) {
     "var ssoHostPattern = /^https:\\/\\/(nsso(?:-test)?\\.zhonganinfo\\.com|nsso\\.zhongan\\.io)(?=\\/|$)/i;",
     "function rewriteUrl(input) {",
     "  if (typeof input !== 'string') return input;",
-    "  return ssoHostPattern.test(input) ? input.replace(ssoHostPattern, previewSsoHost) : input;",
+    "  var m = ssoHostPattern.exec(input);",
+    "  if (!m) return input;",
+    "  var rewritten = input.replace(ssoHostPattern, previewSsoHost);",
+    "  // 把原始 SSO host 附在 _sso 参数里，供 gateway 代理时还原目标",
+    "  var sep = rewritten.indexOf('?') >= 0 ? '&' : '?';",
+    "  return rewritten + sep + '_sso=' + encodeURIComponent(m[0]);",
     "}",
     "var originalFetch = window.fetch;",
     "if (typeof originalFetch === 'function') {",
@@ -672,7 +677,7 @@ function renderShellPage(runtimeConfig, app, sessionToken, requestUrl) {
     "      html, body { margin: 0; height: 100%; }",
     "      body { font-family: ui-sans-serif, system-ui, sans-serif; background: #e2e8f0; }",
     "      .wd-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100vh; }",
-    "      .wd-shell__header { padding: 16px; background: linear-gradient(180deg, #0f172a, #1e293b); }",
+    "      .wd-shell__header { padding: 16px; background: #efefef; border-bottom: 1px solid #e0e0e0; }",
     "      .wd-shell__content { min-height: 0; }",
     "      .wd-shell__frame { width: 100%; height: 100%; border: 0; background: #fff; display: block; }",
     "    </style>",
@@ -1028,20 +1033,27 @@ function createHandler(options, logger) {
       // SSO 代理路由：前端 rewriteUrl 把 SSO 域 rewrite 到 serve，
       // serve 再代理到真实 SSO，避免浏览器 CORS 问题
       if (
-        previewAuth.enabled &&
-        (requestUrl.pathname === "/validate2" || requestUrl.pathname === "/userinfo")
+        requestUrl.pathname === "/validate2" || requestUrl.pathname === "/userinfo"
       ) {
         routeType = "sso-proxy";
-        const ssoHost = resolveSsoHost(previewAuth, request);
-        const targetUrl = new URL(requestUrl.pathname + requestUrl.search, ssoHost);
+        // 优先用前端 rewriteUrl 附带的原始 SSO host（_sso 参数），
+        // 避免 gateway resolveSsoHost 与前端 getSsoHost() 指向不同系统导致 ticket 跨系统兑换失败
+        const ssoFromParam = requestUrl.searchParams.get("_sso") || "";
+        const ssoHost = ssoFromParam || resolveSsoHost(previewAuth, request);
+        // 转发时去掉 _sso 参数，不透传给上游
+        const forwardUrl = new URL(requestUrl.pathname + requestUrl.search, ssoHost);
+        forwardUrl.searchParams.delete("_sso");
+        const targetUrl = forwardUrl;
         const proxyHeaders = {
           Accept: "application/json",
           "X-Service-Name": previewAuth.defaultServiceName,
           "X-Platform-Type": "web",
           "X-Requested-With": "XMLHttpRequest"
         };
-        if (previewAuth.apigAppCode) {
-          proxyHeaders["X-Apig-AppCode"] = previewAuth.apigAppCode;
+        // 优先用配置的 apigAppCode，否则透传客户端携带的 x-apig-appcode
+        const apigAppCode = previewAuth.apigAppCode || request.headers["x-apig-appcode"] || "";
+        if (apigAppCode) {
+          proxyHeaders["X-Apig-AppCode"] = apigAppCode;
         }
         // userinfo 需要带 X-Usercenter-Session
         const sessionHeader = request.headers["x-usercenter-session"] || "";
@@ -1098,15 +1110,42 @@ function createHandler(options, logger) {
           }
           const q = requestUrl.searchParams.get("q") || "";
           const ucBase = shareProxy.ucBasePath || "/admin/uc";
-          return proxyToUpstream({
-            request, response,
-            upstreamOrigin: shareProxy.ucOrigin,
-            targetPath: `${ucBase}/user?username=${encodeURIComponent(q)}`,
-            sessionToken: request.headers["x-usercenter-session"] || "",
-            serviceName: "",
-            logger, requestId,
-            pathName: requestUrl.pathname
-          });
+          // 优先取 header，兜底从 cookie 读（浏览器插件只带 cookie 不带 header）
+          const ucCookies = parseCookieHeader(request.headers.cookie || "");
+          const ucSessionToken =
+            request.headers["x-usercenter-session"] ||
+            buildUserinfoSessionValue(
+              ucCookies[previewAuth.cookieName] ||
+              ucCookies[previewAuth.clientSessionCookieName] ||
+              ucCookies[previewAuth.clientUnsafeSessionCookieName] ||
+              ""
+            );
+          // 仿照 SSO 代理：构造干净的请求头，不透传浏览器噪音
+          const ucProxyHeaders = {
+            "Accept": "application/json",
+            "X-Service-Name": previewAuth.defaultServiceName,
+            "X-Platform-Type": "web",
+            "X-Requested-With": "XMLHttpRequest"
+          };
+          if (ucSessionToken) {
+            ucProxyHeaders["X-Usercenter-Session"] = ucSessionToken;
+          }
+          const apigAppCode = shareProxy.apigAppCode || request.headers["x-apig-appcode"] || "";
+          if (apigAppCode) {
+            ucProxyHeaders["X-Apig-AppCode"] = apigAppCode;
+          }
+          const ucUrl = new URL(`${ucBase}/user?username=${encodeURIComponent(q)}`, shareProxy.ucOrigin);
+          const startedAt2 = Date.now();
+          let ucRes;
+          try {
+            ucRes = await fetch(ucUrl.toString(), { headers: ucProxyHeaders });
+          } catch (err) {
+            logger.error("proxy.failed", { requestId, path: requestUrl.pathname, upstreamOrigin: shareProxy.ucOrigin, error: err });
+            return sendJson(response, 502, { error: "uc_proxy_failed" });
+          }
+          const ucBody = await ucRes.text();
+          logger.info("proxy.completed", { requestId, method: "GET", path: requestUrl.pathname, upstreamOrigin: shareProxy.ucOrigin, targetPath: ucUrl.pathname + ucUrl.search, statusCode: ucRes.status, durationMs: Date.now() - startedAt2 });
+          return sendText(response, ucRes.status, ucBody, ucRes.headers.get("content-type") || "application/json");
         }
 
         // config + submit → app-center 代理

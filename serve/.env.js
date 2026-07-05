@@ -1,47 +1,17 @@
 const fs = require("node:fs");
 const path = require("node:path");
-
-const parentConfigPath = path.resolve(__dirname, "..", "config.js");
-const parentConfig = JSON.parse(fs.readFileSync(parentConfigPath, "utf8"));
+const config = JSON.parse(fs.readFileSync(path.join(__dirname, "../config.js"), "utf8"));
 
 module.exports = {
   host: "127.0.0.1",
   port: 4173,
-  projectsDir: parentConfig.PROJECTS_DIR,
-  previewAuth: {
-    enabled: true,
-    cookieName: "ATLANTIS_SESSION_ID",
-    clientSessionCookieName: "session_id",
-    clientUnsafeSessionCookieName: "unsafeSessionId",
-    defaultServiceName: "za-open-bot",
-    useMockSso: false,
-    ssoHost: "",
-    apigAppCode: "1330946eac6340c4ba11f68243a7e02c48949cb06bd14feca342dadeb3cba4dd",
-    devPreviewRegistryPath: path.resolve(__dirname, "..", "scripts", "vitectrl", "registry.json")
-  },
-  menu: {
-    title: "Shared Control",
-    selectA: {
-      id: "env",
-      label: "Environment"
-    },
-    selectB: {
-      id: "region",
-      label: "Region"
-    },
-    submitLabel: "Submit"
-  },
-  pluginMock: {
-    selectAOptions: [
-      { label: "Mock Test", value: "mock-test" },
-      { label: "Mock Prod", value: "mock-prod" }
-    ],
-    selectBOptions: [
-      { label: "Mock CN", value: "mock-cn" },
-      { label: "Mock US", value: "mock-us" }
-    ],
-    submitResponse: {
-      message: "mock submit success"
-    }
+  // 从顶层 config.js 继承，保持与 share-preview.js 写入目录一致
+  projectsDir: config.PROJECTS_DIR,
+  // 分享功能代理配置
+  // ucOrigin: UC 服务地址（对应生产 vite 代理 /api/platform → za-aigc-platform.test.za.biz）
+  // ucBasePath: rewrite 后的路径前缀（去掉 /api/platform，保留 /admin/uc）
+  shareProxy: {
+    ucOrigin: "https://aigc.zhonganonline.com",
+    ucBasePath: "/botWeb/admin/uc"
   }
 };
