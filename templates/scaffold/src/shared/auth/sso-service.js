@@ -41,7 +41,13 @@ export function getSsoHost() {
   }
 
   // domestic 默认
-  return 'https://nsso.zhongan.io'
+  const domesticHosts = {
+    dev:  'https://nsso-test.zhonganinfo.com',
+    test: 'https://nsso-test.zhonganinfo.com',
+    pre:  'https://nsso.zhonganinfo.com',
+    prd:  'https://nsso.zhonganinfo.com',
+  }
+  return domesticHosts[env] || 'https://nsso.zhongan.io'
 }
 
 // ---------------------------------------------------------------------------

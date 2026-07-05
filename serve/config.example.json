@@ -2,6 +2,17 @@
   "host": "127.0.0.1",
   "port": 4173,
   "projectsDir": "./projects",
+  "devMode": {
+    "enabled": false,
+    "ssoHost": "https://nsso-test.zhonganinfo.com",
+    "ucOrigin": "",
+    "ucBasePath": "/admin/uc",
+    "appCenterOrigin": "",
+    "appCenterBasePath": "/app-center"
+  },
+  "previewAuth": {
+    "enabled": true
+  },
   "shareProxy": {
     "appCenterOrigin": "",
     "appCenterBasePath": "/app-center",

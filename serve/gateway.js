@@ -45,6 +45,45 @@ const MOCK_TICKETS = {
   "ticket-za-lisi": "session-za-lisi"
 };
 
+/**
+ * 将 shareProxy.ssoHost 归并到 previewAuth.ssoHost。
+ * 生产路径（devMode.enabled = false）下，shareProxy 里显式配置的 ssoHost
+ * 优先于 resolveSsoHost 的域名自动判断逻辑。
+ */
+function normalizeShareProxy(options) {
+  const sp = options.shareProxy || {};
+  if (sp.ssoHost) {
+    options.previewAuth = options.previewAuth || {};
+    // devMode.enabled = true 时 applyDevMode 会再次覆盖此值，优先级更高
+    if (!options.previewAuth.ssoHost) {
+      options.previewAuth.ssoHost = sp.ssoHost;
+    }
+  }
+}
+
+/**
+ * 将 devMode 块的配置覆盖到 previewAuth / shareProxy。
+ * devMode.enabled = false 时直接 return，生产配置原样生效。
+ * 只覆盖 devMode 中显式填写的字段（非空字符串），空字段不覆盖。
+ */
+function applyDevMode(options) {
+  const dev = options.devMode;
+  if (!dev || !dev.enabled) return;
+
+  // SSO 代理目标（覆盖 shareProxy.ssoHost 写入的值）
+  if (dev.ssoHost) {
+    options.previewAuth = options.previewAuth || {};
+    options.previewAuth.ssoHost = dev.ssoHost;
+  }
+
+  // UC / App Center 代理目标
+  const sp = options.shareProxy = options.shareProxy || {};
+  if (dev.ucOrigin)          sp.ucOrigin          = dev.ucOrigin;
+  if (dev.ucBasePath)        sp.ucBasePath         = dev.ucBasePath;
+  if (dev.appCenterOrigin)   sp.appCenterOrigin    = dev.appCenterOrigin;
+  if (dev.appCenterBasePath) sp.appCenterBasePath  = dev.appCenterBasePath;
+}
+
 function normalizePreviewAuth(options) {
   return {
     ...DEFAULT_PREVIEW_AUTH,
@@ -933,6 +972,8 @@ function ensurePluginBuilt() {
 }
 
 function createHandler(options, logger) {
+  normalizeShareProxy(options);
+  applyDevMode(options);
   const runtimeConfig = buildRuntimeConfig(options);
   const appRegistry = createAppRegistry(options.projectsDir, logger, options.gatewayUrlResolver);
   const previewAuth = normalizePreviewAuth(options);
