@@ -1002,9 +1002,9 @@ test("gateway serves a shell page with header plugin, iframe content routes, pro
     assert.equal(pluginResponse.status, 200);
     assert.match(pluginScript, /WebDesignControlPlugin/);
     assert.match(pluginScript, /localStorage/);
-    assert.match(pluginScript, /__plugin\/submit/);
-    assert.match(pluginScript, /__plugin\/options\/select-a/);
-    assert.match(pluginScript, /__plugin\/options\/select-b/);
+    assert.match(pluginScript, /__plugin\/share\/submit/);
+    assert.match(pluginScript, /__plugin\/share\/config/);
+    assert.match(pluginScript, /__plugin\/share\/search-users/);
 
     const bridgeResponse = await fetch(`${gateway.url}/__runtime/plugin-bridge.js`);
     const bridgeScript = await bridgeResponse.text();
@@ -1038,6 +1038,118 @@ test("discoverApps skips directories without current symlink (legacy structure)"
 
   assert.equal(apps.length, 1);
   assert.equal(apps[0].appId, "APP_NEW");
+});
+
+test("share endpoints return mock data when shareProxy is not configured", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-share-mock-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_SHARE_MOCK" });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir
+    // no shareProxy
+  });
+
+  try {
+    const base = `http://127.0.0.1:${gateway.port}`;
+
+    // config mock
+    const configRes = await fetch(`${base}/__plugin/share/config?appId=APP001`);
+    assert.equal(configRes.status, 200);
+    const configData = await configRes.json();
+    assert.equal(configData.shareType, "SPECIFIC");
+    assert.ok(Array.isArray(configData.members));
+
+    // submit mock
+    const submitRes = await fetch(`${base}/__plugin/share/submit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ appId: "APP001", shareType: "GLOBAL", members: [] })
+    });
+    assert.equal(submitRes.status, 200);
+    const submitData = await submitRes.json();
+    assert.equal(submitData.accepted, true);
+    assert.equal(submitData.mock, true);
+
+    // search-users mock
+    const searchRes = await fetch(`${base}/__plugin/share/search-users?q=zhang`);
+    assert.equal(searchRes.status, 200);
+    const searchData = await searchRes.json();
+    assert.ok(Array.isArray(searchData));
+    assert.ok(searchData.length > 0);
+    assert.ok(searchData[0].username);
+  } finally {
+    await gateway.close();
+  }
+});
+
+test("share endpoints proxy to upstream when shareProxy is configured", async () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-gateway-share-proxy-"));
+  const projectsDir = path.join(rootDir, "projects");
+  fs.mkdirSync(projectsDir, { recursive: true });
+  createProject(projectsDir, { appId: "APP_SHARE_PROXY" });
+
+  // 创建两个 upstream server（app-center + uc）
+  const appCenterRequests = [];
+  const appCenterServer = await createUpstreamServer(async (req, res) => {
+    appCenterRequests.push({ method: req.method, url: req.url });
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ shareType: "GLOBAL", members: [] }));
+  });
+
+  const ucRequests = [];
+  const ucServer = await createUpstreamServer(async (req, res) => {
+    ucRequests.push({ method: req.method, url: req.url });
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify([{ username: "za-test", name: "Test User" }]));
+  });
+
+  const gateway = await startGateway({
+    host: "127.0.0.1",
+    port: 0,
+    projectsDir,
+    shareProxy: {
+      appCenterOrigin: appCenterServer.url,
+      appCenterBasePath: "/app-center",
+      ucOrigin: ucServer.url,
+      ucBasePath: "/admin/uc"
+    }
+  });
+
+  try {
+    const base = `http://127.0.0.1:${gateway.port}`;
+
+    // config → proxy GET /app-center/projects/{appId}/share
+    const configRes = await fetch(`${base}/__plugin/share/config?appId=APP001`);
+    assert.equal(configRes.status, 200);
+    assert.equal(appCenterRequests.length, 1);
+    assert.equal(appCenterRequests[0].method, "GET");
+    assert.ok(appCenterRequests[0].url.includes("/app-center/projects/APP001/share"));
+
+    // submit → proxy POST /app-center/projects/{appId}/share
+    const submitRes = await fetch(`${base}/__plugin/share/submit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ appId: "APP001", shareType: "SPECIFIC", members: [{ account: "za-test" }] })
+    });
+    assert.equal(submitRes.status, 200);
+    assert.equal(appCenterRequests.length, 2);
+    assert.equal(appCenterRequests[1].method, "POST");
+
+    // search-users → proxy GET /admin/uc/user?username=xxx
+    const searchRes = await fetch(`${base}/__plugin/share/search-users?q=test`);
+    assert.equal(searchRes.status, 200);
+    const searchData = await searchRes.json();
+    assert.ok(Array.isArray(searchData));
+    assert.equal(ucRequests.length, 1);
+    assert.ok(ucRequests[0].url.includes("/admin/uc/user"));
+    assert.ok(ucRequests[0].url.includes("username=test"));
+  } finally {
+    await Promise.all([gateway.close(), appCenterServer.close(), ucServer.close()]);
+  }
 });
 
 test("gateway discovers new apps added after startup without restart", async () => {

@@ -782,10 +782,11 @@ async function proxyToUpstream({
   serviceName,
   logger,
   requestId,
-  pathName
+  pathName,
+  rawBody
 }) {
   const startedAt = Date.now();
-  const body = await readBody(request);
+  const body = rawBody !== undefined ? rawBody : await readBody(request);
   const upstreamUrl = new URL(targetPath, upstreamOrigin);
   const headers = { ...request.headers };
   delete headers.host;
@@ -1138,7 +1139,8 @@ function createHandler(options, logger) {
           sessionToken: "",
           serviceName: "",
           logger, requestId,
-          pathName: requestUrl.pathname
+          pathName: requestUrl.pathname,
+          rawBody: Buffer.from(JSON.stringify(submitBody))
         });
       }
 

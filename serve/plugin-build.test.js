@@ -31,3 +31,23 @@ test("buildPlugin emits dist assets and manifest for gateway loading", () => {
   assert.equal(manifest.js, "plugin.js");
   assert.equal(manifest.css, "plugin.css");
 });
+
+test("buildPlugin includes share dialog and publish button in output", () => {
+  const rootDir = path.join(path.resolve(__dirname), "plugins", "web-design-control-plugin");
+  const distDir = path.join(rootDir, "dist");
+
+  const result = buildPlugin({ rootDir });
+
+  const pluginJs = fs.readFileSync(path.join(distDir, "plugin.js"), "utf8");
+  const pluginCss = fs.readFileSync(path.join(distDir, "plugin.css"), "utf8");
+
+  assert.match(pluginJs, /wdp-share-dialog/, "plugin.js should contain share dialog class");
+  assert.match(pluginJs, /wdp-btn--publish/, "plugin.js should contain publish button class");
+  assert.match(pluginJs, /loadShareConfig/, "plugin.js should contain loadShareConfig method");
+  assert.match(pluginJs, /submitShare/, "plugin.js should contain submitShare method");
+  assert.match(pluginJs, /searchUsers/, "plugin.js should contain searchUsers method");
+
+  assert.match(pluginCss, /wdp-action-bar/, "plugin.css should contain action bar class");
+  assert.match(pluginCss, /wdp-overlay/, "plugin.css should contain overlay class");
+  assert.match(pluginCss, /wdp-share-dialog/, "plugin.css should contain share dialog class");
+});
