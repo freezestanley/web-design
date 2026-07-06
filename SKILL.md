@@ -382,6 +382,8 @@ DONE
 | Gate 被 block（`gate.js block`） | 执行 `gate.js unblock` 解锁后重新推进 | 若无法 unblock，告知用户具体 block 原因，等待用户决策 |
 | `resolve-project.js` 找不到项目 | 检查 `PROJECTS_DIR` 配置和目录是否存在 | 提示用户：续改只允许操作有 `.webdesign/project.json` 的托管项目 |
 | 审计结论为 FAIL | 读取 `audit.md` 中的失败项 → 回到 `G6_DEVELOPMENT` 修复 | 不得在审计 FAIL 的情况下强行推进到 G8 |
+| `dev-preview.js start` 失败 | 检查端口占用（`lsof -i :<port>`）→ 关闭占用进程后重试；检查 `--bypass false` 参数是否传入 | 执行 `gate.js reopen-dev` 回退到 `G6_DEVELOPMENT`，告知用户无法预览原因，等待用户决策后继续 |
+| `product-sync.js` 执行失败 | 检查 `product.md` 是否已写入且路径正确 → 确认 `task-id` 格式 → 重试 | 告知用户 product-sync 失败，禁止跳过直接推进到 G3；若 upstreamOrigin 缺失则返回 Step 2 补问 |
 
 
 # 安装前置依赖和init初始化
