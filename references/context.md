@@ -34,8 +34,20 @@
 
 **HANDOFF 正确顺序：**
 1. 调用 `gate.js advance/block/reopen-dev` 把当前状态写回 `workflow.json`
-2. 调用 `/compact` 或 `/clear` 清理上下文
-3. 从 handoff 摘要恢复，继续下一步
+2. 输出 `CONTEXT_SAVE` 摘要块（格式见下）
+3. **必须**在摘要块之后追加以下固定提示语，一字不差：
+   > 存档完毕。执行 `/clear` 后，在新对话中回复「继续任务」即可恢复进度。
+4. 调用 `/compact` 或 `/clear` 清理上下文
+5. 从 handoff 摘要恢复，继续下一步
+
+**`CONTEXT_SAVE` 格式：**
+```
+[TASK] 当前目标（一句话，含完成标准）
+[DONE] 已完成步骤（文件路径 + 改了什么）
+[BLOCK] 阻塞点（最多3条）
+[NEXT] 下一步（具体到命令或函数名）
+[REF] 关键引用（变量名、API路径、端口号等）
+```
 
 **禁止项：** 在 HANDOFF 前执行 `/compact` 或 `/clear` → gate 状态和进度丢失。
 

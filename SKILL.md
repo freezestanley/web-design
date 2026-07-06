@@ -9,6 +9,16 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
 # **强制执行** 读取 `references/context.md` 里的上下文管理规则，防止上下文爆炸导致后续流程失败。
 
+## 任务恢复（续改入口）
+
+用户说「继续任务」/「continue」/「恢复」/「继续上次」时：
+1. 要求用户粘贴上一次的 `CONTEXT_SAVE` 块
+2. 按块中 `[TASK]`/`[DONE]`/`[BLOCK]`/`[NEXT]`/`[REF]` 还原上下文
+3. 从 `[NEXT]` 指定的步骤继续执行，不重复已完成步骤
+4. 若用户未粘贴存档，回复：「请粘贴上次 HANDOFF 输出的 CONTEXT_SAVE 块以恢复任务。」
+
+---
+
 ## 核心规则
 
 - **强制执行** 禁止context超过70%,应立即停止任务,执行HANDOFF, 使用`/compact`压缩上下文,从HANDOFF中恢复并继续任务,防止上下文被撑爆,
