@@ -13,7 +13,7 @@ module.exports = {
   // enabled: false → 整个 devMode 块被忽略，生产配置原样生效
   // 留空的字段（""）不覆盖，对应接口退化到现有 mock
   devMode: {
-    enabled: true,
+    enabled: false,
 
     // SSO：validate2 + userinfo 打到此 host
     ssoHost: "https://nsso-test.zhonganinfo.com",
