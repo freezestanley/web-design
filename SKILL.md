@@ -5,9 +5,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
 # web-design
 
-`web-design` 是总控 skill，不是单页面 HTML 生成器。它负责把页面工作强制收敛到项目管理、需求确认、设计、开发、静态审计、用户预览和最终发布的统一 SOP
-
-# **强制执行** 读取 `references/context.md` 里的上下文管理规则，防止上下文爆炸导致后续流程失败。
+总控 skill，把页面工作收敛到项目管理、需求确认、设计、开发、静态审计、用户预览和发布的统一 SOP。**必须**先读取 `references/context.md` 上下文管理规则，防止 context 爆炸。
 
 ## 任务恢复（续改入口）
 
