@@ -102,8 +102,11 @@ plugin.render = function render(container, options, apiClient) {
   searchInput.placeholder = "搜索域账号";
   var searchDropdown = plugin.createElement("div", "wdp-search-dropdown");
   searchDropdown.style.display = "none";
+  var searchError    = plugin.createElement("div", "wdp-search-error", "请选择分享人");
+  searchError.style.display = "none";
   searchWrap.appendChild(searchInput);
   searchWrap.appendChild(searchDropdown);
+  searchWrap.appendChild(searchError);
   membersSection.appendChild(membersLabel);
   membersSection.appendChild(tagsRow);
   membersSection.appendChild(searchWrap);
@@ -120,11 +123,14 @@ plugin.render = function render(container, options, apiClient) {
   body.appendChild(membersSection);
   body.appendChild(globalHint);
 
-  var footer     = plugin.createElement("div", "wdp-share-dialog__footer");
-  var cancelBtn  = plugin.createElement("button", "wdp-btn wdp-btn--cancel", "取消");
-  cancelBtn.type = "button";
-  var okBtn      = plugin.createElement("button", "wdp-btn wdp-btn--ok", "分享");
+  var footer      = plugin.createElement("div", "wdp-share-dialog__footer");
+  var successMsg  = plugin.createElement("span", "wdp-share-success", "分享设置已成功");
+  successMsg.style.display = "none";
+  var cancelBtn   = plugin.createElement("button", "wdp-btn wdp-btn--cancel", "取消");
+  cancelBtn.type  = "button";
+  var okBtn       = plugin.createElement("button", "wdp-btn wdp-btn--ok", "确认");
   okBtn.type = "button";
+  footer.appendChild(successMsg);
   footer.appendChild(cancelBtn);
   footer.appendChild(okBtn);
 
@@ -149,6 +155,7 @@ plugin.render = function render(container, options, apiClient) {
       del.innerHTML = '<svg viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" width="12" height="12"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
       del.addEventListener("click", function () {
         state.accounts = state.accounts.filter(function (a) { return a.value !== acc.value; });
+        hideSuccess();
         renderTags();
         renderDropdown();
       });
@@ -176,9 +183,10 @@ plugin.render = function render(container, options, apiClient) {
       if (!already) {
         item.addEventListener("click", function () {
           state.accounts.push(user);
-          // 同步 userCache
           if (user._raw) state.userCache[user.value] = user._raw;
-          // 保持搜索框和 dropdown，让用户可继续选人；重新渲染 dropdown 更新已选状态
+          // 清空输入框和搜索结果，便于继续搜索
+          searchInput.value = "";
+          state.searchResults = [];
           renderTags();
           renderDropdown();
         });
@@ -207,13 +215,18 @@ plugin.render = function render(container, options, apiClient) {
     state.submitting = on;
     okBtn.disabled = on;
     cancelBtn.disabled = on;
-    okBtn.textContent = on ? "处理中..." : "分享";
+    okBtn.textContent = on ? "处理中..." : "确认";
+  }
+
+  function hideSuccess() {
+    successMsg.style.display = "none";
   }
 
   // ── debounce search ──────────────────────────────────────────────
   var searchTimer = null;
   searchInput.addEventListener("input", function () {
     var q = searchInput.value.trim();
+    searchError.style.display = "none";
     clearTimeout(searchTimer);
     if (!q) {
       state.searchResults = [];
@@ -251,10 +264,12 @@ plugin.render = function render(container, options, apiClient) {
   // ── radio change ─────────────────────────────────────────────────
   inputSpecific.addEventListener("change", function () {
     state.shareType = "SPECIFIC";
+    hideSuccess();
     applyShareTypeUI();
   });
   inputGlobal.addEventListener("change", function () {
     state.shareType = "GLOBAL";
+    hideSuccess();
     applyShareTypeUI();
   });
 
@@ -272,6 +287,8 @@ plugin.render = function render(container, options, apiClient) {
     renderTags();
     setSubmitting(false);
     searchDropdown.style.display = "none";
+    searchError.style.display = "none";
+    successMsg.style.display = "none";
 
     overlay.style.display = "flex";
     state.open = true;
@@ -322,24 +339,17 @@ plugin.render = function render(container, options, apiClient) {
   // ── submit ───────────────────────────────────────────────────────
   okBtn.addEventListener("click", async function () {
     if (state.submitting) return;
-    var members = state.shareType === "SPECIFIC"
-      ? state.accounts.map(function (a) {
-          var u = state.userCache[a.value] || {};
-          return {
-            account: a.value,
-            name: u.name || a.value,
-            company: u.companyName || "",
-            department: u.primaryDepartmentName || ""
-          };
-        })
-      : [];
 
-    if (state.shareType === "SPECIFIC" && members.length === 0) {
-      // 简单校验：SPECIFIC 必须选人
-      searchInput.classList.add("wdp-search-input--error");
-      setTimeout(function () { searchInput.classList.remove("wdp-search-input--error"); }, 1500);
+    // 校验：SPECIFIC 必须选人
+    if (state.shareType === "SPECIFIC" && state.accounts.length === 0) {
+      searchError.style.display = "block";
       return;
     }
+    searchError.style.display = "none";
+
+    var members = state.shareType === "SPECIFIC"
+      ? state.accounts.map(function (a) { return { account: a.value }; })
+      : [];
 
     setSubmitting(true);
     try {
@@ -347,7 +357,8 @@ plugin.render = function render(container, options, apiClient) {
         shareType: state.shareType,
         members: members
       });
-      closeDialog();
+      setSubmitting(false);
+      successMsg.style.display = "inline";
     } catch (_) {
       setSubmitting(false);
     }

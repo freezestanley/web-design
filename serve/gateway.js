@@ -6,6 +6,7 @@ const { URL } = require("node:url");
 const { isProcessAlive } = require("../scripts/vitectrl/lib/process");
 
 const { buildPlugin, needsBuild } = require("./plugins/web-design-control-plugin/scripts/build-plugin");
+const { getShareRouteType, buildShareMockPayload, handleShareRoute } = require("./share-proxy");
 const { createLogger } = require("./logger");
 
 const MIME_TYPES = {
@@ -828,7 +829,8 @@ async function proxyToUpstream({
   logger,
   requestId,
   pathName,
-  rawBody
+  rawBody,
+  previewAuth
 }) {
   const startedAt = Date.now();
   const body = rawBody !== undefined ? rawBody : await readBody(request);
@@ -841,8 +843,22 @@ async function proxyToUpstream({
   if (rawBody !== undefined) {
     headers["content-length"] = String(rawBody.length);
   }
-  if (sessionToken && !headers["x-usercenter-session"]) {
-    headers["x-usercenter-session"] = sessionToken;
+  // sessionToken 优先用调用方传入值，兜底从 cookie 读
+  const resolvedSession = sessionToken ||
+    buildUserinfoSessionValue(
+      (() => {
+        const cookies = parseCookieHeader(request.headers.cookie || "");
+        const auth = previewAuth || DEFAULT_PREVIEW_AUTH;
+        return (
+          cookies[auth.cookieName] ||
+          cookies[auth.clientSessionCookieName] ||
+          cookies[auth.clientUnsafeSessionCookieName] ||
+          ""
+        );
+      })()
+    );
+  if (resolvedSession && !headers["x-usercenter-session"]) {
+    headers["x-usercenter-session"] = resolvedSession;
   }
   if (serviceName && !headers["x-service-name"]) {
     headers["x-service-name"] = serviceName;
@@ -903,26 +919,6 @@ function getControlTarget(controlProxy, pathname) {
   return null;
 }
 
-function getShareRouteType(pathname) {
-  if (pathname === "/__plugin/share/config")        return "config";
-  if (pathname === "/__plugin/share/submit")        return "submit";
-  if (pathname === "/__plugin/share/search-users")  return "search-users";
-  return null;
-}
-
-function buildShareMockPayload(routeType, requestPayload, searchParams) {
-  if (routeType === "config") {
-    return { shareType: "SPECIFIC", members: [] };
-  }
-  if (routeType === "submit") {
-    return { accepted: true, mock: true, received: requestPayload };
-  }
-  if (routeType === "search-users") {
-    var q = searchParams.get("q") || "";
-    return [{ username: "mock-" + (q || "user"), name: "Mock " + (q || "User") }];
-  }
-  return null;
-}
 
 function buildMockPayload(options, pathname, requestPayload) {
   const pluginMock = options.pluginMock || {};
@@ -1129,102 +1125,12 @@ function createHandler(options, logger) {
 
       if (requestUrl.pathname.startsWith("/__plugin/share/")) {
         routeType = "plugin-share";
-        const shareRouteType = getShareRouteType(requestUrl.pathname);
-        if (!shareRouteType) {
-          return sendJson(response, 404, { error: "unsupported_share_route", pathname: requestUrl.pathname });
-        }
-        const isSubmit = shareRouteType === "submit";
-        if (isSubmit && request.method !== "POST") {
-          return sendJson(response, 405, { error: "method_not_allowed" });
-        }
-        if (!isSubmit && request.method !== "GET") {
-          return sendJson(response, 405, { error: "method_not_allowed" });
-        }
-
-        const shareProxy = options.shareProxy || {};
-        const hasAppCenter = shareProxy.appCenterOrigin;
-        const hasUc = shareProxy.ucOrigin;
-
-        // search-users → UC 代理
-        if (shareRouteType === "search-users") {
-          if (!hasUc) {
-            return sendJson(response, 200, buildShareMockPayload("search-users", null, requestUrl.searchParams));
-          }
-          const q = requestUrl.searchParams.get("q") || "";
-          const ucBase = shareProxy.ucBasePath || "/admin/uc";
-          // 优先取 header，兜底从 cookie 读（浏览器插件只带 cookie 不带 header）
-          const ucCookies = parseCookieHeader(request.headers.cookie || "");
-          const ucSessionToken =
-            request.headers["x-usercenter-session"] ||
-            buildUserinfoSessionValue(
-              ucCookies[previewAuth.cookieName] ||
-              ucCookies[previewAuth.clientSessionCookieName] ||
-              ucCookies[previewAuth.clientUnsafeSessionCookieName] ||
-              ""
-            );
-          // 仿照 SSO 代理：构造干净的请求头，不透传浏览器噪音
-          const ucProxyHeaders = {
-            "Accept": "application/json",
-            "X-Service-Name": previewAuth.defaultServiceName,
-            "X-Platform-Type": "web",
-            "X-Requested-With": "XMLHttpRequest"
-          };
-          if (ucSessionToken) {
-            ucProxyHeaders["X-Usercenter-Session"] = ucSessionToken;
-          }
-          const apigAppCode = shareProxy.apigAppCode || request.headers["x-apig-appcode"] || "";
-          if (apigAppCode) {
-            ucProxyHeaders["X-Apig-AppCode"] = apigAppCode;
-          }
-          const ucUrl = new URL(`${ucBase}/user?username=${encodeURIComponent(q)}`, shareProxy.ucOrigin);
-          const startedAt2 = Date.now();
-          let ucRes;
-          try {
-            ucRes = await fetch(ucUrl.toString(), { headers: ucProxyHeaders });
-          } catch (err) {
-            logger.error("proxy.failed", { requestId, path: requestUrl.pathname, upstreamOrigin: shareProxy.ucOrigin, error: err });
-            return sendJson(response, 502, { error: "uc_proxy_failed" });
-          }
-          const ucBody = await ucRes.text();
-          logger.info("proxy.completed", { requestId, method: "GET", path: requestUrl.pathname, upstreamOrigin: shareProxy.ucOrigin, targetPath: ucUrl.pathname + ucUrl.search, statusCode: ucRes.status, durationMs: Date.now() - startedAt2 });
-          return sendText(response, ucRes.status, ucBody, ucRes.headers.get("content-type") || "application/json");
-        }
-
-        // config + submit → app-center 代理
-        if (!hasAppCenter) {
-          const payload = isSubmit ? await parseJsonBody(request) : null;
-          return sendJson(response, 200, buildShareMockPayload(shareRouteType, payload, requestUrl.searchParams));
-        }
-
-        const appCenterBase = shareProxy.appCenterBasePath || "/app-center";
-        if (shareRouteType === "config") {
-          const qAppId = requestUrl.searchParams.get("appId") || "";
-          return proxyToUpstream({
-            request, response,
-            upstreamOrigin: shareProxy.appCenterOrigin,
-            targetPath: `${appCenterBase}/projects/${encodeURIComponent(qAppId)}/share`,
-            sessionToken: request.headers["x-usercenter-session"] || "",
-            serviceName: "",
-            logger, requestId,
-            pathName: requestUrl.pathname
-          });
-        }
-
-        // submit
-        const submitBody = await parseJsonBody(request);
-        if (!submitBody) {
-          return sendJson(response, 400, { error: "invalid_json" });
-        }
-        const submitAppId = submitBody.appId || "";
-        return proxyToUpstream({
-          request, response,
-          upstreamOrigin: shareProxy.appCenterOrigin,
-          targetPath: `${appCenterBase}/projects/${encodeURIComponent(submitAppId)}/share`,
-          sessionToken: request.headers["x-usercenter-session"] || "",
-          serviceName: "",
-          logger, requestId,
-          pathName: requestUrl.pathname,
-          rawBody: Buffer.from(JSON.stringify(submitBody))
+        return handleShareRoute({
+          request, response, requestUrl,
+          options, previewAuth,
+          proxyToUpstream, parseJsonBody, parseCookieHeader,
+          buildUserinfoSessionValue, sendJson, sendText,
+          logger, requestId
         });
       }
 
@@ -1291,7 +1197,8 @@ function createHandler(options, logger) {
           serviceName: previewAuth.defaultServiceName,
           logger,
           requestId,
-          pathName: requestUrl.pathname
+          pathName: requestUrl.pathname,
+          previewAuth
         });
       }
 
@@ -1383,7 +1290,8 @@ function createHandler(options, logger) {
           serviceName: previewAuth.defaultServiceName,
           logger,
           requestId,
-          pathName: requestUrl.pathname
+          pathName: requestUrl.pathname,
+          previewAuth
         });
       }
 

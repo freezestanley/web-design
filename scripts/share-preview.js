@@ -6,6 +6,7 @@ const path = require("node:path");
 const { loadConfig } = require("./lib/load-config");
 const { renderManifest } = require("./lib/manifest");
 const { readProjectMeta } = require("./lib/project-state");
+const { ensureServeRunning } = require("./lib/ensure-serve");
 
 const config = loadConfig();
 
@@ -142,7 +143,16 @@ function main() {
   }
 
   const result = exportSharePreview(projectPath, taskId, outputDir);
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+
+  // 确保 serve pm2 服务在线，失败不阻断，输出警告即可
+  let serveStatus = null;
+  try {
+    serveStatus = ensureServeRunning();
+  } catch (serveError) {
+    process.stderr.write(`[warn] serve 启动失败，请手动检查：${serveError.message}\n`);
+  }
+
+  process.stdout.write(`${JSON.stringify({ ...result, serveStatus }, null, 2)}\n`);
 }
 
 if (require.main === module) {

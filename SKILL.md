@@ -210,6 +210,7 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 本步骤与 CDP 截图无关，token 成本为零，不受上下文压力、截图预算、HANDOFF 状态影响，任何情况不得省略
    - 🔴 禁止以任何理由跳过：无论是新建页面、续改页面、小幅修改、样式调整、纯文案改动，还是 agent 自判"用户已知道链接"，均不构成豁免条件
    - 执行命令：`node scripts/share-preview.js export <project-path> <task-id>`
+   - 该命令内部已集成 serve 健康检查：自动检测 `web-design-serve-gateway` pm2 状态，若 errored/stopped 则释放端口后重启，若不存在则首次启动，等待 online 后返回
    - 取返回值中的 `sharePreviewUrl`，执行 `open <sharePreviewUrl>`；若命令失败，必须补发纯文本提示
    - `sharePreviewUrl` 路径格式为 `/apps/<appId>/`，用户通过 serve 的 SSO 引导访问，体验与发布环境一致
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接
@@ -315,6 +316,7 @@ DONE
 - `node scripts/share-preview.js export <project-path> <task-id> [--output-dir <dir>]`
   - 生成给 `serve` 使用的分享预览快照目录，目录内包含静态构建产物、`manifest.json` 与 `_meta.json`
   - 分享预览构建阶段强制 `VITE_SSO_BYPASS=false`，禁止沿用开发态 `.env.local` 中的 bypass
+  - 内置 serve 健康检查（`scripts/lib/ensure-serve.js`）：自动确保 `web-design-serve-gateway` pm2 进程 online，失败写 stderr 警告不阻断主流程
 - `node scripts/publish.js <project-path> <task-id>`
 - `node scripts/lib/manifest-proxy.js <project-path> [upstream-origin] [--api-doc <path>]`
   - 从接口文档提取 proxy routes 并写入 `.webdesign/manifest.json`

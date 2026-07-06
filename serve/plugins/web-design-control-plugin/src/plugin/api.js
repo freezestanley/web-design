@@ -19,11 +19,11 @@ plugin.createApiClient = function createApiClient(options, fetchImpl) {
     },
     submitShare: function submitShare(appId, payload) {
       return plugin.requestJson(
-        ep.submit,
+        ep.submit + "?appId=" + encodeURIComponent(appId),
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ appId: appId, shareType: payload.shareType, members: payload.members })
+          body: JSON.stringify({ shareType: payload.shareType, members: payload.members })
         },
         fetchImpl
       );
