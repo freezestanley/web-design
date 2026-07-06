@@ -151,103 +151,89 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
 
 ### Step 3. 开发
 
-> 禁止先选工具再定页型。必须完成页型分流后才允许选工具。
-
-#### 3-A 设计准备
-**输入**：product.md 已确认（Gate G3）  **产出**：design.md 写入完成（待审）
-
-1. 读取 `references/design_workflow.md`，按其中 Step 3 规程执行
-2. 判定页型：`Marketing/Landing` / `SaaS/Dashboard/Tool` / `Story/PPT/Scrolltelling` / `Hybrid`
-   - `Hybrid` 必须额外写明主页型、副页型及副页型影响的模块范围
-3. 按页型读取设计参考资料：
-
-   | 页型 | 必读文件 |
-   |------|---------|
-   | Marketing/Landing | `references/design/landing.md` |
-   | SaaS/Dashboard/Tool | `references/design/landing.md`（取可复用结构方法）+ 项目已有 UI 秩序 |
-   | Story/PPT/Scrolltelling | `references/design/ppt.md` + `references/design/story.md` |
-   | 需要背景/视频/粒子/光影（任意页型） | 补读 `references/design/background.md` |
-   | **所有页型** | 必读 `references/image.md` |
-
-4. 定义图片与背景策略（必须在引入任何素材前完成）：
+1. 先读取 `references/design_workflow.md`，按其中的 Step 3 规程执行。必须先完成页型分流，再继续后续设计工作
+2. 先判定当前页面属于哪一类：`Marketing / Landing`、`SaaS / Dashboard / Tool`、`Story / PPT / Scrolltelling`、`Hybrid`
+   - `Hybrid` 必须额外写明主页型、副页型，以及副页型只影响哪些模块
+   - 禁止先选工具，再倒推页面应该长什么样
+3. 根据页型读取本地设计资料和图片策略规范：
+   - `Marketing / Landing`：先读 `references/design/landing.md`
+   - `SaaS / Dashboard / Tool`：先读 `references/design/landing.md` 中可复用的结构方法，并结合当前项目已有 UI 秩序
+   - `Story / PPT / Scrolltelling`：先读 `references/design/ppt.md`、`references/design/story.md`
+   - 需要背景、视频、粒子、光影时，再补读 `references/design/background.md`
+   - 所有页型都必须读取 `references/image.md`
+4. 先定义图片与背景策略，再允许引入素材。至少必须写清：
    - 是否真的需要图片
-   - 图片角色：主视觉 / 说明 / 情绪 / 产品演示 / 纯背景
+   - 图片承担主视觉、说明、情绪、产品演示还是纯背景
    - 图片所在 section
    - 是否需要遮罩、裁切、焦点保护
-   - 移动端降级方案
-   - 缺图 fallback
+   - 移动端如何降级
+   - 缺图 fallback 是什么
+5. 根据页型再选择工具（以下为选择矩阵）：
 
-5. 按页型选择工具：
-
-   | 场景 | 工具 |
-   |------|------|
+   | 场景 | 使用工具 |
+   |------|---------|
    | 基础整页设计与实现 | `design-taste-frontend` |
-   | 设计定稿前/审计阶段视觉纠偏 | `gpt-taste` |
-   | 滚动叙事、章节推进、sticky/reveal/timeline | `gsap-scrolltrigger` |
-   | 组件级微交互动效 | `motion.js` / `React Bits` |
-   | 表单、表格、后台管理控件 | `antd`（仅 SaaS/Dashboard/Tool 或 Hybrid 业务模块） |
-   | 纯展示落地页、无复杂交互 | 仅 `design-taste-frontend` |
+   | 设计定稿前和审计阶段的视觉纠偏 | `gpt-taste` |
+   | 需要滚动叙事、章节推进、sticky/reveal/timeline | `gsap-scrolltrigger` |
+   | 需要组件级微交互动效 | `motion.js` / `React Bits` |
+   | 表单、表格、后台管理类交互控件 | `antd`（仅 `SaaS / Dashboard / Tool` 或 `Hybrid` 业务模块按需接入） |
+   | 纯展示型落地页，无复杂交互 | 仅 `design-taste-frontend` |
 
-6. 用选定工具形成设计方案，写入 `design.md`
-   - 模板：`references/design_v2/design.md`；可参考 example 文件，禁止整份照抄
-   - 必须包含：页面身份、设计指纹、视觉关键词、Section Blueprint、图片与背景策略、组件语言、动效策略、移动端降级、负向红线、自检表
-   - 以下任一缺失直接视为设计未完成：结构缺失只有颜色字体、关键词全是空泛形容词、未写图片策略、未写移动端降级、未写负向红线
-
-7. 用 `gpt-taste` 对 `design.md` 做设计自审：确认无页型错位、模板味、图片可读性问题
-
-8. 🔴 **CHECKPOINT · G4→G5**：等用户口头确认 design.md，禁止代替用户确认
-
-#### 3-B 开发实现
-**输入**：design.md 已获用户确认（Gate G5）  **产出**：代码写入完成，dev-preview 已启动
-
-> 禁止大文件写入；禁止逻辑与 UI 混写；禁止一次性写完所有代码；禁止多任务并行
-
-9. 制定开发计划，写入 `task.md`（禁止读入 context，只在执行对应任务时按需读取）
-   - 将大任务拆分为多个小任务，每次只执行一个任务、只写入一个组件
-   - 禁止跳过任务；禁止随意改动已定计划
-
-10. 按计划开发，代码分层约束：
-    - UI → 组件；逻辑 → hook；接口请求 → `services/`
-    - 保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
-    - 禁止移除 SSO、路由守卫、鉴权请求头
-
-11. 图片素材获取：Unsplash/Pexels 搜关键词 → 复制直链 → `curl -L “<url>” -o src/assets/<name>.jpg` → 组件顶部 `import heroImage from “../../assets/<name>.jpg”`
-    - 禁止直接使用外链 URL
-    - `default.jpg` 仅临时占位；若进入审计仍未替换，必须在 `audit.md` 中标记为 FAIL 项
-
-12. 开发完成后启动 dev preview：
-    ```bash
-    node scripts/vitectrl/dev-preview.js start <project-path> --bypass false
-    ```
-    - `--bypass false` 为必传参数（与 G8 验收环境一致）
-    - 同一 project-path 旧服务自动关闭；全局最多保留最近 5 个 managed dev preview
-    - 取返回值中的 `viteUrl`（如 `http://127.0.0.1:517x`），用于步骤 13 的 CDP 审计
-
-#### 3-C 审计与预览
-**输入**：dev-preview 已启动，取得 viteUrl  **产出**：audit.md 写入，share-preview URL 已发给用户
-
-13. 读取 `references/design_v2/design_audit.md`（禁止绕过），对 viteUrl 做 CDP 检查与 UI 走查，写入 `audit.md`
-    - 截图预算：单次任务最多 1 次桌面全页截图；首轮足够定位问题则不再截图
-    - 截图前必须等首屏渲染完成（主标题、主内容区域、关键图片已出现，无 loading/skeleton/白屏）
-    - 若页面跳转至 SSO 登录页，必须暂停并通知用户完成登录后再继续
-    - 以下任一出现直接判 `overall: FAIL`：页型错位 / 白字压复杂图且无遮罩 / 工具页信息难扫读 / 营销页无首屏抓手 / 故事页无章节推进 / 默认占位图未替换 / 明显模板味
-
-14. 🔴 **[必须执行·不可跳过]** 执行 share-preview 导出，把 serve 访问地址以纯文本发给用户：
-    ```bash
-    node scripts/share-preview.js export <project-path> <task-id>
-    ```
-    - 取返回值中的 `sharePreviewUrl`，执行 `open <sharePreviewUrl>`；命令失败则补发纯文本提示
-    - 禁止以任何理由跳过（新建/续改/小改/样式调整/文案改动/agent 自判用户已知地址，均不豁免）
-    - 禁止使用 Markdown 链接格式，只输出纯文本地址
-
-15. 用户有修改意见 → 执行 `reopen-dev` 退回 `G6_DEVELOPMENT`，必须重新完整走 G6→G7→G8→G9
-    - 任何代码修改（`src/`、`scripts/`、配置、组件）均视为重新进入 G6
-    - 🔴 禁止在 Gate < G9_PUBLISH_READY 时调用 `publish.js`
-
-16. 🔴 **CHECKPOINT · G8→G9**：Step 14 完成后，发出询问：「预览是否满意？若无修改将进入发布流程。」
-    - 禁止在 Step 14 未完成前发出此询问
-    - 用户回复模糊词（”好””确认””继续”）时必须追问：「请确认您已在浏览器中查看过页面。」
-    - 用户明确确认已预览且无修改后才能推进至 Step 4
+6. 使用选定工具形成设计方案，写入 `design.md`
+   - `design.md` 必须以 `references/design_v2/design.md` 为模板
+   - 可参考 `references/design_v2/example-marketing-design.md` 与 `references/design_v2/example-saas-design.md`，但禁止整份照抄
+   - 至少包含：页面身份、设计指纹、视觉关键词、Section Blueprint、图片与背景策略、组件语言、动效策略、移动端降级、负向红线、自检表
+   - 以下情况直接视为设计未完成：只有颜色字体没有结构、关键词全是空泛形容词、未写图片策略、未写移动端降级、未写负向红线
+7. 使用 `gpt-taste` 先对 `design.md` 做一轮设计自审，确认没有明显页型错位、模板味、图片可读性问题，再进入用户确认
+8. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
+   - 禁止大文件写入、禁止所有代码都在一个文件，必须基于设计方案拆分组件，按模块化、可复用、可维护的原则组织代码
+   - 逻辑维护在hook里，UI维护在组件里，禁止把逻辑和UI混在一起
+   - 接口请求维护在`services`里,便于维护
+9. 必须制定开发计划,后按计划开发,禁止随意改动开发计划
+   - 开发计划落地文档task.md,禁止放入context,否则容易撑爆上下文
+   - task.md只有使用时才能读取
+   - 必须将大任务拆分成多个小任务,禁止一次性写完所有代码,否则容易出错
+   - **必须单任务执行** 禁止多个任务同时执行,只允许一次执行一个任务,一次只能写入一个组件
+   - 每个任务依次执行，禁止跳过任务,否则容易出错
+10. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
+   - 任何情况都禁止移除SSO、路由守卫和鉴权请求头
+11. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
+   - 禁止直接使用外链 URL 作为最终交付资源
+   - `default.jpg` 仅允许临时占位，若进入审计仍未替换，必须在 `audit.md` 中标记为失败项
+12. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path> --bypass false`
+   - `--bypass false` 为必传参数，确保启动和 build 均以 `VITE_SSO_BYPASS=false` 执行，与 G8 用户验收环境一致
+   - 该脚本负责统一启动 dev preview，并自动治理由 `web-design` 管理过的 Vite 服务
+   - 同一 `project-path` 若已有旧的 managed dev preview，启动新服务前必须自动关闭旧服务
+   - 全局最多只保留最近 5 个 managed dev preview；超出的最老服务必须自动关闭释放端口
+   - `.env.local` 由 `.gitignore` 保护，不进仓库
+   - 启动成功后取返回值中的 `viteUrl`（Vite 原始端口，如 `http://127.0.0.1:517x`），用于 Step 13 的 CDP 截图和审计
+13. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`
+   - 截图预算固定为单次任务最多 1 次
+   - 分配为 1 次桌面全页截图
+   - 若首轮截图已足够定位问题，剩余额度保留，禁止为了“多看几眼”继续截图,多次截图
+   - 截图前必须先等待页面完成首屏渲染；至少确认主标题、主内容区域、关键图片或核心模块已出现，且页面不再处于 loading / skeleton / spinner / 明显白屏 状态
+   - 若页面仍在加载中，必须继续等待，不得提前截图
+   - 若页面进入 SSO 登录页、鉴权跳转页或未登录态，必须暂停截图与审计，先通知用户完成登录，再继续后续动作
+     读取design audit: `references/design_v2/design_audit.md`，禁止绕过
+   - 若出现页型错位、白字压复杂图且无遮罩、工具页信息难扫读、营销页无首屏抓手、故事页无章节推进、默认占位图未替换、明显模板味，直接判定 `overall: FAIL`
+14. 🔴 **[必须执行·不可跳过]** 执行 share-preview 导出，把 serve 访问地址发给用户
+   - 本步骤与 CDP 截图无关，token 成本为零，不受上下文压力、截图预算、HANDOFF 状态影响，任何情况不得省略
+   - 🔴 禁止以任何理由跳过：无论是新建页面、续改页面、小幅修改、样式调整、纯文案改动，还是 agent 自判"用户已知道链接"，均不构成豁免条件
+   - 执行命令：`node scripts/share-preview.js export <project-path> <task-id>`
+   - 该命令内部已集成 serve 健康检查：自动检测 `web-design-serve-gateway` pm2 状态，若 errored/stopped 则释放端口后重启，若不存在则首次启动，等待 online 后返回
+   - 取返回值中的 `sharePreviewUrl`，执行 `open <sharePreviewUrl>`；若命令失败，必须补发纯文本提示
+   - `sharePreviewUrl` 路径格式为 `/apps/<appId>/`，用户通过 serve 的 SSO 引导访问，体验与发布环境一致
+   - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接
+15. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
+    - 执行 `reopen-dev` 后 Gate 回退到 `G6_DEVELOPMENT`
+    - **必须重新完整走完 G6→G7（静态审计 PASS）→G8（用户预览确认）→G9，才允许执行 `publish.js`**
+    - 任何代码修改（包括 `src/`、`scripts/`、配置文件、组件）都视为重新进入 G6，禁止跳过审计和预览直接发布
+    - 🔴 禁止在 Gate < G9_PUBLISH_READY 时调用 `publish.js` 或输出发布标记
+16. 🔴 **CHECKPOINT · G8→G9**：必须在用户已收到访问地址（Step 14 完成）之后，才能发出询问：「预览是否满意？若无修改将进入发布流程。」
+    - 禁止在 Step 14 未完成（未执行 open 且未发出纯文本地址）的情况下发出此询问
+    - 用户回复确认表示"已看过页面且满意"，若用户仅回复模糊词（如"好""确认""继续"）且未明确说明已预览，必须追问：「请确认您已在浏览器中查看过页面。」
+    - 禁止在未获得用户明确确认前自行推进到 Step 4
+    - 用户明确确认已预览且无修改后才能执行发布
 
 ### Step 4. 发布
 
