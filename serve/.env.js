@@ -19,14 +19,14 @@ module.exports = {
     ssoHost: "https://nsso-test.zhonganinfo.com",
 
     // UC 用户搜索（search-users 接口）
-    # ucOrigin: "https://aigc-test.zhonganonline.com",
-    # ucBasePath: "/botWeb/admin/uc",
+    // ucOrigin: "https://aigc-test.zhonganonline.com",
+    // ucBasePath: "/botWeb/admin/uc",
     ucOrigin:          "http://localhost:8080",
     ucBasePath:        "/api/botWeb/admin/uc",
 
     // App Center（分享配置读取 + 提交）
-    # appCenterOrigin: "",
-    # appCenterBasePath: "/app-center",
+    // appCenterOrigin: "",
+    // appCenterBasePath: "/app-center",
     appCenterOrigin:   "http://localhost:8080",
     appCenterBasePath: "/app-center",
   },
@@ -41,14 +41,14 @@ module.exports = {
       ssoHost: "https://nsso.zhonganinfo.com",
 
       // UC 用户搜索（search-users 接口）
-      # ucOrigin: "https://aigc.zhonganonline.com",
-      # ucBasePath: "/botWeb/admin/uc",
+      // ucOrigin: "https://aigc.zhonganonline.com",
+      // ucBasePath: "/botWeb/admin/uc",
       ucOrigin:          "https://clawmatic.zhonganonline.com",
       ucBasePath:        "/botWeb/admin/uc",
 
       // App Center（分享配置读取 + 提交）
-      # appCenterOrigin: "",
-      # appCenterBasePath: "/app-center",
+      // appCenterOrigin: "",
+      // appCenterBasePath: "/app-center",
       appCenterOrigin:   "https://clawmatic.zhonganonline.com",
       appCenterBasePath: "/app-center",
   }

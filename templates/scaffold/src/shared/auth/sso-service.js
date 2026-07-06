@@ -17,6 +17,11 @@ const SERVICE_NAME = 'za-open-bot'
  * 不配置时回退到国内默认 https://nsso.zhongan.io
  */
 export function getSsoHost() {
+  // gateway devMode 时注入真实 SSO host，优先于构建时的 VITE_SSO_ENV
+  if (typeof window !== 'undefined' && window.__PREVIEW_SSO_HOST__) {
+    return window.__PREVIEW_SSO_HOST__
+  }
+
   const env = import.meta.env?.VITE_SSO_ENV || 'dev'
   const region = import.meta.env?.VITE_SSO_REGION || 'domestic'
 

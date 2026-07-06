@@ -402,7 +402,8 @@ function resolveSsoHost(previewAuth, request) {
   if (
     hostname.includes(".prd.") ||
     hostname === "aigc.zhonganonline.com" ||
-    hostname === "ai.zhonganonline.com"
+    hostname === "ai.zhonganonline.com" ||
+    hostname === "clawmatic.zhonganonline.com"
   ) {
     return "https://nsso.zhonganinfo.com";
   }
@@ -1397,7 +1398,7 @@ function createHandler(options, logger) {
         return sendText(
           response,
           200,
-          rewriteContentHtml(html, app, authState?.sessionToken || "", resolveServeOrigin(request)),
+          rewriteContentHtml(html, app, authState?.sessionToken || "", resolveSsoHost(previewAuth, request)),
           "text/html; charset=utf-8",
           buildPreviewSessionHeaders(previewAuth, authState?.sessionToken || "")
         );
