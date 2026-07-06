@@ -3,3 +3,4 @@ node_modules
 scripts/vitectrl/registry.json
 docs/*
 */docs/*
+serve/logs/*
