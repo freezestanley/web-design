@@ -6,7 +6,7 @@ const { URL } = require("node:url");
 const { isProcessAlive } = require("../scripts/vitectrl/lib/process");
 
 const { buildPlugin, needsBuild } = require("./plugins/web-design-control-plugin/scripts/build-plugin");
-const { getShareRouteType, buildShareMockPayload, handleShareRoute } = require("./share-proxy");
+const { getShareRouteType, buildShareMockPayload, handleShareRoute, handlePublishRoute } = require("./share-proxy");
 const { createLogger } = require("./logger");
 
 const MIME_TYPES = {
@@ -1121,6 +1121,16 @@ function createHandler(options, logger) {
           return sendFile(response, distFile);
         }
         return sendJson(response, 404, { error: "dist_asset_not_found" });
+      }
+
+      if (requestUrl.pathname === "/__plugin/publish") {
+        routeType = "plugin-publish";
+        return handlePublishRoute({
+          request, response, requestUrl,
+          options, previewAuth,
+          proxyToUpstream, sendJson,
+          logger, requestId
+        });
       }
 
       if (requestUrl.pathname.startsWith("/__plugin/share/")) {

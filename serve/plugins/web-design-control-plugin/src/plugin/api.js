@@ -10,6 +10,13 @@ plugin.requestJson = async function requestJson(url, init, fetchImpl) {
 plugin.createApiClient = function createApiClient(options, fetchImpl) {
   var ep = options.shareEndpoints;
   return {
+    publish: function publish(appId) {
+      return plugin.requestJson(
+        options.publishEndpoint + "?appId=" + encodeURIComponent(appId),
+        { method: "POST" },
+        fetchImpl
+      );
+    },
     loadShareConfig: function loadShareConfig(appId) {
       return plugin.requestJson(
         ep.config + "?appId=" + encodeURIComponent(appId),

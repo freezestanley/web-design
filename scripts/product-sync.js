@@ -42,7 +42,7 @@ function escapeRegExp(value) {
 
 function readSection(markdown, title) {
   const pattern = new RegExp(
-    `^##\\s+${escapeRegExp(title)}\\s*$([\\s\\S]*?)(?=^##\\s+|\\Z)`,
+    `(?:^|\\n)##\\s+${escapeRegExp(title)}\\s*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`,
     "m"
   );
   const match = markdown.match(pattern);

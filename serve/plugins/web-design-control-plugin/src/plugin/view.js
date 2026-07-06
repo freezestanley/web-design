@@ -8,19 +8,53 @@ plugin.render = function render(container, options, apiClient) {
   // ── 顶层 action bar ──────────────────────────────────────────────
   var bar = plugin.createElement("div", "wdp-action-bar");
 
+  // 发布成功提示
+  var publishSuccessMsg = plugin.createElement("span", "wdp-publish-success", "发布成功");
+  publishSuccessMsg.style.display = "none";
+  var publishCountdownTimer = null;
+
   var publishBtn = plugin.createElement("button", "wdp-btn wdp-btn--publish");
   publishBtn.type = "button";
   publishBtn.innerHTML = [
-    '<span class="wdp-btn__icon" aria-hidden="true">',
+    '<span class="wdp-btn__icon wdp-btn__icon--spin" aria-hidden="true" style="display:none">',
+    '<svg viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" width="15" height="15">',
+    '<path d="M7.5 1.5A6 6 0 1 1 1.5 7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
+    '</svg>',
+    '</span>',
+    '<span class="wdp-btn__icon wdp-btn__icon--default" aria-hidden="true">',
     '<svg viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg" width="15" height="15">',
     '<path d="M7.5 1L13 7.5M7.5 1L2 7.5M7.5 1v10M2 13h11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>',
     '</svg>',
     '</span>',
-    '<span>发布</span>'
+    '<span class="wdp-btn__text">发布</span>'
   ].join("");
-  publishBtn.addEventListener("click", function () {
-    // TODO: 发布接口待补充
+
+  function setPublishing(on) {
+    publishBtn.disabled = on;
+    publishBtn.querySelector(".wdp-btn__icon--spin").style.display = on ? "inline-flex" : "none";
+    publishBtn.querySelector(".wdp-btn__icon--default").style.display = on ? "none" : "inline-flex";
+    publishBtn.querySelector(".wdp-btn__text").textContent = on ? "发布中..." : "发布";
+  }
+
+  publishBtn.addEventListener("click", async function () {
+    if (publishBtn.disabled) return;
+    // 清除上次倒计时
+    clearTimeout(publishCountdownTimer);
+    publishSuccessMsg.style.display = "none";
+    setPublishing(true);
+    try {
+      await apiClient.publish(options.appId);
+      setPublishing(false);
+      publishSuccessMsg.style.display = "inline";
+      publishCountdownTimer = setTimeout(function () {
+        publishSuccessMsg.style.display = "none";
+      }, 5000);
+    } catch (_) {
+      setPublishing(false);
+    }
   });
+
+  bar.appendChild(publishSuccessMsg);
 
   var shareBtn = plugin.createElement("button", "wdp-btn wdp-btn--share");
   shareBtn.type = "button";

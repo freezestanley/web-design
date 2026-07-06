@@ -2,6 +2,7 @@ plugin.instances = new Map();
 
 plugin.defaultOptions = {
   title: "Shared Control",
+  publishEndpoint: "/__plugin/publish",
   shareEndpoints: {
     config: "/__plugin/share/config",
     submit: "/__plugin/share/submit",
@@ -18,6 +19,7 @@ plugin.mergeOptions = function mergeOptions(options) {
     appId: raw.appId || "preview-app",
     currentPath: raw.currentPath || "/preview",
     title: raw.title || plugin.defaultOptions.title,
+    publishEndpoint: raw.publishEndpoint || plugin.defaultOptions.publishEndpoint,
     shareEndpoints: {
       config:       se.config       || def.config,
       submit:       se.submit       || def.submit,

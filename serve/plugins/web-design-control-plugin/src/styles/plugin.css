@@ -27,6 +27,17 @@
   padding: 0;
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
+.wdp-publish-success {
+  font-size: 13px;
+  color: #16a34a;
+  margin-right: auto;
+}
+@keyframes wdp-spin {
+  to { transform: rotate(360deg); }
+}
+.wdp-btn__icon--spin {
+  animation: wdp-spin 0.8s linear infinite;
+}
 
 /* ── shared button base ────────────────────────────── */
 .wdp-btn {

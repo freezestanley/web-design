@@ -159,4 +159,42 @@ async function handleShareRoute(ctx) {
   });
 }
 
-module.exports = { getShareRouteType, buildShareMockPayload, handleShareRoute };
+// ── publish 处理器 ────────────────────────────────────────────────────────────
+
+/**
+ * 处理 /__plugin/publish 路由
+ */
+async function handlePublishRoute(ctx) {
+  const {
+    request, response, requestUrl,
+    options, previewAuth,
+    proxyToUpstream, sendJson,
+    logger, requestId
+  } = ctx;
+
+  if (request.method !== "POST") {
+    return sendJson(response, 405, { error: "method_not_allowed" });
+  }
+
+  const shareProxy = options.shareProxy || {};
+  const appId = requestUrl.searchParams.get("appId") || "";
+
+  if (!shareProxy.appCenterOrigin) {
+    return sendJson(response, 200, { success: true, mock: true, appId });
+  }
+
+  const appCenterBase = shareProxy.appCenterBasePath || "/app-center";
+  return proxyToUpstream({
+    request, response,
+    upstreamOrigin: shareProxy.appCenterOrigin,
+    targetPath: `${appCenterBase}/projects/${encodeURIComponent(appId)}/publish`,
+    sessionToken: request.headers["x-usercenter-session"] || "",
+    serviceName: previewAuth.defaultServiceName,
+    logger, requestId,
+    pathName: requestUrl.pathname,
+    rawBody: Buffer.from("{}"),
+    previewAuth
+  });
+}
+
+module.exports = { getShareRouteType, buildShareMockPayload, handleShareRoute, handlePublishRoute };
