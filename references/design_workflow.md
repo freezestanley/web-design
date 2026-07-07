@@ -7,7 +7,8 @@
 3. 最后把差页面拦在开发前和审计门外
 
 它不是工具宣传页，也不是通用灵感收集页。真正的 `DESIGN.md` 模板以 `references/design_v2/design.md` 为准，真正的实现与审计提示分别以 `references/design_v2/design-taste-frontend.md` 和 `references/design_v2/gpt-taste.md` 为准。
-若需要看填写方式，可额外参考 `references/design_v2/example-marketing-design.md` 与 `references/design_v2/example-saas-design.md`。
+若需要看填写方式，可额外参考 `references/design_v2/example-marketing-design.md` 与 `references/design_v2/example-saas-design.md`和`references/design_v2/example/index.md`。
+
 
 ## 执行总则
 
@@ -46,6 +47,7 @@
 | `SaaS / Dashboard / Tool` | `references/design/landing.md` 中可转化部分 + 当前项目现有 UI | 信息层级、筛选区、数据区、空状态、组件秩序 |
 | `Story / PPT / Scrolltelling` | `references/design/ppt.md`, `references/design/story.md` | 章节推进、镜头感、分幕节奏 |
 | `Hybrid` | 先读主页型对应资料，再补读副页型资料 | 主骨架由主页型决定，副页型只做局部增强 |
+
 
 有背景、视频、粒子、光影、长图等需求时，再补读：
 
