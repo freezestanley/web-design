@@ -59,7 +59,7 @@ export function createRouter() {
         children: [
           {
             path: '/',
-            element: <></>,
+            element: <div>hi shanghai</div>,
           },
           // 在此添加更多受保护的路由
         ],
