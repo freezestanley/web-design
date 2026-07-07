@@ -1,18 +1,55 @@
-## 安装前置
+# Setup
 
+本文件只负责首次安装和环境初始化，不负责日常页面 workflow。
 
-- **重要** 所有安装都在当前workspace
-- 安装流程: 如解析失败请手动安装依赖技能
-  - `npx skills add https://github.com/greensock/gsap-skills`
-  - `npx skills add https://github.com/Leonxlnx/taste-skill`
-  - `npx skills add anthropics/skills --skill frontend-design`
-  - `npx skills add ofershap/tailwind-best-practices`
-  - 修改config.js中`PROJECTS_DIR`改为当前 agent workspace的绝对路径下projects文件夹,如`/home/ubuntu/claw-workspace/projects`
-  - 拷贝`heartbear/scripts`下的文件到当前workspace下的`scripts`目录下
-  - 将`HEARTBEAT.md`追加到当前workspace下的`HEARTBEAT.md`内
-  - 将context管理规则追加到当前workspace下的`AGENTS.md`内,追加到底部,禁止全量覆盖以免原有内容丢失
-    context管理规则: `references/context.md`,防止上下文爆炸,直接卡死上下文
-  - 移动到`scripts`目录下,基于`packgae.json`安装 node 依赖
-  - 执行先执行 HANDOFF 保存状态，然后 /compact释放上下文
-  - 执行`gateway restart`重启gateway,使配置生效
+## Scope
 
+适用场景：
+
+- 首次把 `web-design` 装进当前 workspace
+- 迁移到新的 agent workspace
+- 缺少前置依赖，导致流程无法开始
+
+不适用场景：
+
+- 日常页面创建、设计、开发、发布
+- 普通任务中的阶段推进
+
+## Setup Checklist
+
+### 1. Install prerequisite skills
+
+如缺少依赖技能，再安装：
+
+- `npx skills add https://github.com/greensock/gsap-skills`
+- `npx skills add https://github.com/Leonxlnx/taste-skill`
+- `npx skills add anthropics/skills --skill frontend-design`
+- `npx skills add ofershap/tailwind-best-practices`
+
+### 2. Initialize workspace config
+
+- 把 `config.js` 中的 `PROJECTS_DIR` 指向当前 workspace 下的 `projects` 目录
+- 确认模板、任务目录等配置可被脚本读取
+
+### 3. Sync local support files
+
+按需要同步：
+
+- `heartbear/scripts` 到当前 workspace 的 `scripts` 目录
+- `HEARTBEAT.md` 追加到当前 workspace 的 `HEARTBEAT.md`
+- `references/context.md` 追加到当前 workspace 的 `AGENTS.md`
+
+追加时只追加，不全量覆盖。
+
+### 4. Install Node dependencies
+
+在相应目录安装脚本依赖，确保 `scripts/*` 可以运行。
+
+### 5. Restart supporting gateway if required
+
+如果当前环境依赖 gateway 配置刷新，再执行重启，使配置生效。
+
+## Do Not Do
+
+- 不要把这里的 setup 步骤混成日常 workflow
+- 不要把安装文档当作运行时规范来源

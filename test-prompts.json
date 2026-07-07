@@ -12,6 +12,16 @@
   {
     "id": 3,
     "prompt": "帮我修改首页的 Hero 区域文案，把标题改成让创作更简单",
-    "expected": "agent 先运行 list-projects.js 找项目，通过 resolve-project.js 确认是托管项目，创建续改 task，修改代码后 npm run build，做静态审计和预览；若需 CDP 截图，单次任务最多截图 2 次"
+    "expected": "agent 先定位托管项目并创建续改 task，按 revise existing 模式推进；修改后重新做静态审计和预览，若需 CDP 截图，单次任务最多截图 1 次"
+  },
+  {
+    "id": 4,
+    "prompt": "先帮我把这个产品页的设计方案定下来，不要写代码，也不要发布",
+    "expected": "agent 进入设计阶段，只读取 design workflow 和对应页型资料，先产出 design.md 与图片策略，再做设计自审；不要提前进入开发、预览或发布阶段"
+  },
+  {
+    "id": 5,
+    "prompt": "不要改代码，先帮我审计一下这个页面现在能不能交付，只给我问题清单",
+    "expected": "agent 按 audit only 模式推进，定位当前项目或构建结果，启动受控预览，写入 audit.md，并给出审计结论；不要未经说明直接改代码或推进发布"
   }
 ]

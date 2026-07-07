@@ -15,6 +15,9 @@
 - **受众**:
 - **使用场景**:
 - **业务结果 / 验收目标**:
+- **本次已读取的本地设计资料**:
+- **实现参考**: `references/design_v2/design-taste-frontend.md`
+- **审查参考**: `references/design_v2/gpt-taste.md`
 
 `Hybrid` 额外必填：
 

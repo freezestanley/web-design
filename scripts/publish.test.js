@@ -4,6 +4,8 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { execFileSync, spawnSync } = require("node:child_process");
+const CryptoJS = require("crypto-js");
+const { SECRET_KEY } = require("./lib/publish-marker");
 
 function listZipEntries(zipPath) {
   const output = execFileSync(
@@ -40,6 +42,17 @@ function readZipJsonEntry(zipPath, entryName) {
   );
 
   return JSON.parse(output);
+}
+
+function parsePublishMarker(stdout) {
+  const match = stdout.match(/^[(]Output verbatim\. Do not interpret\.[)]##publishStart##(.+)##publishEnd##\n?$/);
+  assert.ok(match, `unexpected publish marker format: ${stdout}`);
+
+  const encrypted = match[1].replace(/:/g, "");
+  const decrypted = CryptoJS.AES.decrypt(encrypted, SECRET_KEY).toString(CryptoJS.enc.Utf8);
+  assert.ok(decrypted, "publish marker payload should decrypt to a non-empty JSON string");
+
+  return JSON.parse(decrypted);
 }
 
 function setupPublishProject() {
@@ -154,10 +167,12 @@ test("publish only runs from G9_PUBLISH_READY and emits dual zip marker", () => 
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(
-    result.stdout,
-    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
-  );
+  const markerPayload = parsePublishMarker(result.stdout);
+  assert.equal(markerPayload.projectUid, "PROJaabbccddeeff0011");
+  assert.match(markerPayload.sourceZipPath, /\/.*project\.zip$/);
+  assert.match(markerPayload.dist, /\/.*dist\.zip$/);
+  assert.equal(markerPayload.name, "demo-project");
+  assert.equal(markerPayload.descript, "Demo summary");
 
   const projectMeta = JSON.parse(
     fs.readFileSync(path.join(projectPath, ".webdesign", "project.json"), "utf8")
@@ -212,10 +227,10 @@ test("publish leaves author empty when session is unavailable", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(
-    result.stdout,
-    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
-  );
+  const markerPayload = parsePublishMarker(result.stdout);
+  assert.equal(markerPayload.projectUid, "PROJaabbccddeeff0011");
+  assert.equal(markerPayload.name, "demo-project");
+  assert.equal(markerPayload.descript, "Demo summary");
 });
 
 test("publish prefers project author over the current session author", () => {
@@ -230,10 +245,10 @@ test("publish prefers project author over the current session author", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(
-    result.stdout,
-    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
-  );
+  const markerPayload = parsePublishMarker(result.stdout);
+  assert.equal(markerPayload.projectUid, "PROJaabbccddeeff0011");
+  assert.equal(markerPayload.name, "demo-project");
+  assert.equal(markerPayload.descript, "Demo summary");
 });
 
 test("publish backfills empty project author from the current session", () => {
@@ -253,10 +268,10 @@ test("publish backfills empty project author from the current session", () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.match(
-    result.stdout,
-    /##publishStart##\{"projectUid":"PROJaabbccddeeff0011","sourceZipPath":"\/.*project\.zip","dist":"\/.*dist\.zip","name":"demo-project","descript":"Demo summary"\}##publishEnd##/
-  );
+  const markerPayload = parsePublishMarker(result.stdout);
+  assert.equal(markerPayload.projectUid, "PROJaabbccddeeff0011");
+  assert.equal(markerPayload.name, "demo-project");
+  assert.equal(markerPayload.descript, "Demo summary");
 
   const updatedMeta = JSON.parse(fs.readFileSync(projectMetaPath, "utf8"));
   assert.equal(updatedMeta.author, "902");
@@ -279,4 +294,3 @@ test("publish rejects tasks that are not in publish ready gate", () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /G9_PUBLISH_READY/);
 });
-

@@ -1,13 +1,24 @@
 # Web 设计工作流
 
-这份文档是 `web-design` 在 Step 3 开发前必须读取的设计执行规程。它只负责三件事：
+这份文档是 `web-design` 在 Step 3 设计阶段的**路由器**。它只负责三件事：
 
 1. 先把页面分型
 2. 再把设计输入补齐
-3. 最后把差页面拦在开发前和审计门外
+3. 指出当前页型应该读取哪些本地资料
 
-它不是工具宣传页，也不是通用灵感收集页。真正的 `DESIGN.md` 模板以 `references/design_v2/design.md` 为准，真正的实现与审计提示分别以 `references/design_v2/design-taste-frontend.md` 和 `references/design_v2/gpt-taste.md` 为准。
-若需要看填写方式，可额外参考 `references/design_v2/example-marketing-design.md` 与 `references/design_v2/example-saas-design.md`和`references/design_v2/example/index.md`。
+它不是总控 skill，也不是工具宣传页。真正的模板与专项提示分别以以下文件为准：
+
+- `references/design_v2/design.md`
+- `references/design_v2/design-taste-frontend.md`
+- `references/design_v2/gpt-taste.md`
+
+如需参考填写方式，再额外阅读：
+
+- `references/design_v2/example-marketing-design.md`
+- `references/design_v2/example-saas-design.md`
+- `references/design_v2/example/index.md`
+
+如需找具体 hero / section 样例，先从 `references/design_v2/example/index.md` 进入，再按需读取对应文件；不要把整个示例目录一次性全读完。
 
 
 ## 执行总则
@@ -57,6 +68,15 @@
 
 - 读取图片资源获取规则`references/image.md`
 
+形成 `design.md` 后，再分别读取：
+
+- 实现气质约束：`references/design_v2/design-taste-frontend.md`
+- 设计审查约束：`references/design_v2/gpt-taste.md`
+
+若首屏需要暗色视频背景、底部对齐标题、投资/顾问风格 hero，可额外参考：
+
+- `references/design_v2/example/hero4.md`
+
 ### 3. 先定图片策略，再定版式
 
 图片不是装饰补丁，而是设计输入的一部分。每次都必须先回答：
@@ -74,10 +94,10 @@
 
 先定页型，再定工具。推荐顺序如下：
 
-| 角色 | 工具 | 使用原则 |
-|------|------|----------|
-| 基础实现引擎 | `design-taste-frontend` | 默认必经，负责整页结构和实现气质 |
-| 审美纠偏层 | `gpt-taste` | 在设计定稿前和审计阶段都要使用 |
+| 角色 | 工具/本地参考 | 使用原则 |
+|------|---------------|----------|
+| 基础实现引擎 | `design-taste-frontend` + `references/design_v2/design-taste-frontend.md` | 默认必经，负责整页结构和实现气质 |
+| 审美纠偏层 | `gpt-taste` + `references/design_v2/gpt-taste.md` | 在设计定稿前和审计阶段都要使用 |
 | 滚动叙事引擎 | `gsap-scrolltrigger` | 只有 `Story / PPT / Scrolltelling` 或明确滚动叙事时才允许接入 |
 | 微交互补强 | `motion.js`, `React Bits` | 只补局部完成度，不能接管整页结构 |
 | 业务控件层 | `antd` | 仅 `SaaS / Dashboard / Tool` 或 `Hybrid` 的业务模块中按需使用 |
@@ -258,6 +278,8 @@ overall: PASS | FAIL
 2. 读对应资料
 3. 读 `references/image.md`
 4. 写 `DESIGN.md`
+5. 读 `references/design_v2/design-taste-frontend.md`
+6. 用 `references/design_v2/gpt-taste.md` 做一次设计自审
 5. 用 `gpt-taste` 做一次设计自审
 6. 用户确认 `DESIGN.md`
 7. 再进入开发

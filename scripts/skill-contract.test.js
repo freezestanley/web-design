@@ -3,85 +3,116 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-test("skill contract limits screenshot usage per task", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+function read(relativePath) {
+  return fs.readFileSync(path.resolve(__dirname, "..", relativePath), "utf8");
+}
 
-  assert.match(content, /单次任务最多截图\s*2\s*次/);
-  assert.match(content, /优先在静态审计阶段使用截图/);
+test("main skill declares authority boundaries and routes to flow references", () => {
+  const content = read("SKILL.md");
+
+  assert.match(content, /运行时真相/);
+  assert.match(content, /Agent 真相/);
+  assert.match(content, /测试角色/);
+  assert.match(content, /references\/architecture\/authority-map\.md/);
+  assert.match(content, /references\/flow\/entry-modes\.md/);
+  assert.match(content, /references\/flow\/gates\.md/);
+  assert.match(content, /references\/flow\/context-handoff\.md/);
 });
 
-test("skill contract requires publish marker in a standalone turn", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+test("main skill preserves core orchestration constraints", () => {
+  const content = read("SKILL.md");
 
-  assert.match(content, /发布标记.*独立轮次/);
-  assert.match(content, /发布标记.*单独发送/);
+  assert.match(content, /禁止绕过 `publish\.js` 直接发布/);
+  assert.match(content, /默认保留 `src\/app\/router\.jsx`/);
+  assert.match(content, /src\/shared\/auth/);
+  assert.match(content, /src\/shared\/http\/axios-instance\.js/);
+  assert.match(content, /明确要求公开页面 \/ public page/);
+  assert.match(content, /纯文本预览地址/);
 });
 
-test("skill contract requires plain-text manual preview fallback copy", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+test("entry modes define lightweight routing instead of full SOP by default", () => {
+  const content = read("references/flow/entry-modes.md");
 
-  assert.match(content, /页面拒绝链接/);
-  assert.match(content, /请用浏览器打开 127\.0\.0\.1:4173 预览页面。/);
-  assert.match(content, /浏览地址必须以纯文本形式输出/);
-  assert.doesNotMatch(content, /预览地址必须.*Markdown 链接[^]*允许/);
+  assert.match(content, /`new build`/);
+  assert.match(content, /`revise existing`/);
+  assert.match(content, /`audit only`/);
+  assert.match(content, /`publish only`/);
+  assert.match(content, /不要把所有任务都按完整重型 SOP 执行/);
 });
 
-test("skill contract requires vitectrl-managed dev preview retention", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+test("gate reference captures confirmation and publish boundaries", () => {
+  const content = read("references/flow/gates.md");
 
-  assert.match(content, /node scripts\/vitectrl\/dev-preview\.js start <project-path>/);
-  assert.match(content, /最多只保留最近 5 个 managed dev preview/);
-  assert.match(content, /自动关闭旧服务/);
+  assert.match(content, /G2 -> G3/);
+  assert.match(content, /product-sync/);
+  assert.match(content, /G4 -> G5/);
+  assert.match(content, /G8 -> G9/);
+  assert.match(content, /只能执行 `publish\.js`/);
+  assert.match(content, /reopen-dev/);
 });
 
-test("skill contract defines project author as the preferred publish source", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+test("design stage skill routes to canonical design references", () => {
+  const content = read("skills/web-design-design/SKILL.md");
 
-  assert.match(content, /project\.json\.author/);
-  assert.match(content, /优先使用.*project\.json\.author/);
-  assert.match(content, /为空.*当前对话.*session/i);
+  assert.match(content, /references\/design_workflow\.md/);
+  assert.match(content, /references\/design_v2\/design\.md/);
+  assert.match(content, /references\/image\.md/);
+  assert.match(content, /references\/design_v2\/example\/index\.md/);
+  assert.match(content, /references\/design_v2\/example\/hero4\.md/);
+  assert.match(content, /references\/design_v2\/design-taste-frontend\.md/);
+  assert.match(content, /references\/design_v2\/gpt-taste\.md/);
+  assert.match(content, /不要把发布、预览、发布标记协议混进本阶段/);
 });
 
-test("skill contract requires manifest generation before publish packaging", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+test("main skill routes build and release stages to dedicated skills", () => {
+  const content = read("SKILL.md");
 
-  assert.match(content, /\.webdesign\/manifest\.json/);
-  assert.match(content, /生成.*manifest\.json/);
-  assert.match(content, /zip 包根目录/);
+  assert.match(content, /skills\/web-design-build\/SKILL\.md/);
+  assert.match(content, /references\/build\/task-planning\.md/);
+  assert.match(content, /references\/build\/component-boundaries\.md/);
+  assert.match(content, /skills\/web-design-release\/SKILL\.md/);
+  assert.match(content, /references\/release\/preview-flow\.md/);
+  assert.match(content, /references\/release\/publish-flow\.md/);
 });
 
-test("skill contract requires imported src/assets references for Vite builds", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+test("build stage skill protects planning and scaffold boundaries", () => {
+  const content = read("skills/web-design-build/SKILL.md");
+
+  assert.match(content, /先把开发计划落到磁盘文件中/);
+  assert.match(content, /一次只推进一个明确子任务/);
+  assert.match(content, /src\/app\/router\.jsx/);
+  assert.match(content, /src\/shared\/auth/);
+  assert.match(content, /src\/shared\/http\/axios-instance\.js/);
+  assert.match(content, /明确要求公开页面 \/ public page/);
+});
+
+test("release stage skill enforces preview before publish and marker-only publish", () => {
+  const content = read("skills/web-design-release/SKILL.md");
+
+  assert.match(content, /references\/release\/preview-flow\.md/);
+  assert.match(content, /references\/release\/publish-flow\.md/);
+  assert.match(content, /单次任务只允许 1 次截图/);
+  assert.match(content, /share-preview\.js export/);
+  assert.match(content, /用户必须明确表示/);
+  assert.match(content, /发布标记必须单独一轮原样输出/);
+});
+
+test("image guidance requires local src/assets imports and bans raw asset paths", () => {
+  const content = read("references/image.md");
 
   assert.match(content, /src\/assets/);
-  assert.match(content, /必须先 import/i);
-  assert.match(content, /import\s+\w+\s+from ['"]\.\.?\/.*assets\/.*['"]/);
-  assert.doesNotMatch(content, /<img\s+src="\.\/*assets\//);
-  assert.doesNotMatch(content, /相对路径引用/);
+  assert.match(content, /import heroImage from/);
+  assert.doesNotMatch(content, /允许.*src="\.\/assets\//);
+  assert.match(content, /禁止这样做/);
 });
 
-test("skill contract preserves scaffold auth wiring unless the user explicitly requests a public page", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
+test("design workflow points implementer and auditor to canonical v2 references", () => {
+  const content = read("references/design_workflow.md");
 
-  assert.match(content, /默认保留.*src\/app\/router\.jsx/);
-  assert.match(content, /默认保留.*src\/shared\/auth/);
-  assert.match(content, /默认保留.*src\/shared\/http\/axios-instance\.js/);
-  assert.match(content, /明确要求.*公开页面|public page/i);
-});
-
-test("skill contract requires explicit upstreamOrigin per API group when multiple upstreams exist", () => {
-  const skillPath = path.resolve(__dirname, "..", "SKILL.md");
-  const content = fs.readFileSync(skillPath, "utf8");
-
-  assert.match(content, /多组接口.*不同.*upstreamOrigin/);
-  assert.match(content, /每组接口.*显式写.*upstreamOrigin/);
-  assert.match(content, /禁止.*不同上游.*混写.*不标注/i);
+  assert.match(content, /references\/design_v2\/design\.md/);
+  assert.match(content, /references\/design_v2\/example\/index\.md/);
+  assert.match(content, /references\/design_v2\/example\/hero4\.md/);
+  assert.match(content, /references\/design_v2\/design-taste-frontend\.md/);
+  assert.match(content, /references\/design_v2\/gpt-taste\.md/);
+  assert.match(content, /形成 `design\.md` 后/);
 });

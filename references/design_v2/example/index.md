@@ -12,7 +12,8 @@
 | [hero1.md](hero1.md) | Lumora — 冥想 App Hero | 暗色沉浸/全屏视频 | React + Tailwind + Lucide | 4 路视频切换、液态玻璃效果、深色模式联动 |
 | [hero2.md](hero2.md) | NeuralKinetics — 科技产品 Hero | 极简黑白/视频背景 | React + Vite + Framer Motion + 纯 CSS | 响应式视频尺寸、入场动画套件、无 Tailwind |
 | [hero3.md](hero3.md) | 太空旅行落地页（双 Section） | 沉浸太空/双段视频 | React 18 + Tailwind CDN + Framer Motion CDN + Babel | FadingVideo 自定义 rAF 淡入淡出、字级模糊动画、液态玻璃双变体 |
-| [hero.md](hero.md) | _(空文件，占位)_ | — | — | — |
+| [hero4.md](hero4.md) | VEX — 投资/顾问 Hero | 暗色极简/底部内容对齐 | React + TypeScript + Tailwind CSS + Vite | 逐字符 stagger 入场动画、无遮罩纯视频背景、液态玻璃暗色变体 |
+
 
 ---
 
@@ -122,6 +123,42 @@ section.min-h-screen（black bg）
 
 ---
 
+### hero4.md — VEX（投资/顾问）
+
+**定位**：暗色极简风格，内容底部对齐，强调逐字符入场动效
+
+**技术栈**
+- React + TypeScript + Tailwind CSS + Vite
+- 字体：Inter 300/400/500/600（Google Fonts，全局 antialiased）
+- 图标：lucide-react（当前未使用，预留）
+
+**核心设计模式**
+
+| 模式 | 实现细节 |
+|------|---------|
+| 纯视频背景（无遮罩） | 全屏 `<video>` autoplay muted loop，无任何 overlay / gradient / dimming，原始画面直出 |
+| 液态玻璃暗色变体 | `background: rgba(0,0,0,0.4)` + `backdrop-filter: blur(4px)`，渐变边框透明度降至 0.3/0.1 |
+| AnimatedHeading 逐字符入场 | 按 `\n` 分行 → 每行拆字符 → 每字符 `opacity:0 translateX(-18px)→1,0`，stagger = `(lineIndex×lineLength+charIndex)×30ms`，初始延迟 200ms，过渡 500ms |
+| FadeIn 通用包装器 | `setTimeout` + React state 控制 opacity 0→1，delay/duration 可配置，纯 CSS transition |
+| 内容底部对齐 | `flex-1 flex flex-col justify-end`，hero 内容贴底而非居中 |
+| 双列布局（桌面端） | `lg:grid lg:grid-cols-2 lg:items-end`，左列标题+按钮，右列标签卡片 |
+
+**布局结构**
+```
+section.h-screen.relative（black bg）
+├── video（absolute inset-0，z-0，无遮罩）
+└── content（z-10，flex column，justify-end）
+    ├── Navbar（liquid-glass rounded-xl bar）
+    │   ├── Logo "VEX"
+    │   ├── 中心导航链接（md+）
+    │   └── CTA "Start a Chat"
+    └── Hero（pb-12 lg:pb-16）
+        ├── 左列：AnimatedHeading + 副标题 + 按钮组
+        └── 右列：液态玻璃标签卡片
+```
+
+---
+
 ## 共用设计系统片段
 
 ### 液态玻璃 CSS（可直接复用）
@@ -190,3 +227,5 @@ const ease = [0.16, 1, 0.3, 1]
 | 需要 CDN 单文件部署 + 高复杂度 | hero3（太空旅行） |
 | 需要自定义视频淡入淡出（不用 CSS transition） | hero3（FadingVideo 组件） |
 | 需要逐词模糊入场动画 | hero3（BlurText 组件） |
+| 内容底部对齐 + 逐字符 stagger 动效 | hero4（VEX） |
+| 纯视频背景无遮罩暗色风格 | hero4（VEX） |
