@@ -149,3 +149,5 @@ import heroImage from "../../assets/hero-image.jpg";
 - 工具页用大图抢掉核心信息区
 - 正文直接压复杂图且无遮罩
 - 移动端裁切破坏主体或文字可读性
+
+科技感hero背景视频: https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260508_215831_c6a8989c-d716-4d8d-8745-e972a2eec711.mp4

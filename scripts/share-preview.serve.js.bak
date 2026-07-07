@@ -3,36 +3,10 @@
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
 const { loadConfig } = require("./lib/load-config");
 const { renderManifest } = require("./lib/manifest");
 const { readProjectMeta } = require("./lib/project-state");
-const { waitForPort } = require("./vitectrl/lib/process");
-
-const PREVIEW_PORT = 4173;
-const PREVIEW_HOST = "127.0.0.1";
-
-/**
- * 确保 vite preview 在 4173 端口运行。
- * - 已在监听：跳过，不重复启动
- * - 未在监听：spawn npm run preview，等待端口就绪（最多 10s）
- */
-async function ensureVitePreviewRunning(resolvedProjectPath) {
-  // 用 waitForPort 快速探测（100ms 超时）判断端口是否已占用
-  const already = await waitForPort(PREVIEW_HOST, PREVIEW_PORT, { timeoutMs: 100 })
-    .then(() => true)
-    .catch(() => false);
-  if (already) return;
-
-  const child = spawn(
-    "npm",
-    ["run", "preview", "--", "--host", PREVIEW_HOST, "--port", String(PREVIEW_PORT), "--strictPort"],
-    { cwd: resolvedProjectPath, detached: true, stdio: "ignore" }
-  );
-  child.unref();
-
-  await waitForPort(PREVIEW_HOST, PREVIEW_PORT, { timeoutMs: 10000 });
-}
+const { ensureServeRunning } = require("./lib/ensure-serve");
 
 const config = loadConfig();
 
@@ -162,7 +136,7 @@ function exportSharePreview(projectPath, taskId, outputDir) {
   };
 }
 
-async function main() {
+function main() {
   const { command, projectPath, taskId, outputDir } = parseArgs(process.argv.slice(2));
   if (command !== "export" || !projectPath || !taskId) {
     fail("Usage: node scripts/share-preview.js export <project-path> <task-id> [--output-dir <dir>]");
@@ -170,18 +144,23 @@ async function main() {
 
   const result = exportSharePreview(projectPath, taskId, outputDir);
 
-  // 确保 vite preview 在 4173 端口运行（替代 serve gateway，后续可切回）
+  // 确保 serve pm2 服务在线，失败不阻断，输出警告即可
+  let serveStatus = null;
   try {
-    await ensureVitePreviewRunning(path.resolve(projectPath));
-  } catch (previewError) {
-    process.stderr.write(`[warn] vite preview 启动失败：${previewError.message}\n`);
+    serveStatus = ensureServeRunning();
+  } catch (serveError) {
+    process.stderr.write(`[warn] serve 启动失败，请手动检查：${serveError.message}\n`);
   }
 
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ ...result, serveStatus }, null, 2)}\n`);
 }
 
 if (require.main === module) {
-  main().catch((error) => fail(error.message));
+  try {
+    main();
+  } catch (error) {
+    fail(error.message);
+  }
 }
 
 module.exports = {

@@ -7,19 +7,18 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 
 总控 skill，把页面工作收敛到项目管理、需求确认、设计、开发、静态审计、用户预览和发布的统一 SOP。**必须**先读取 `references/context.md` 上下文管理规则，防止 context 爆炸。
 
-## 任务恢复（续改入口）
-
-用户说「继续任务」/「continue」/「恢复」/「继续上次」时：
-1. 要求用户粘贴上一次的 `CONTEXT_SAVE` 块
-2. 按块中 `[TASK]`/`[DONE]`/`[BLOCK]`/`[NEXT]`/`[REF]` 还原上下文
-3. 从 `[NEXT]` 指定的步骤继续执行，不重复已完成步骤
-4. 若用户未粘贴存档，回复：「请粘贴上次 HANDOFF 输出的 CONTEXT_SAVE 块以恢复任务。」
-
 ---
 
 ## 核心规则
 
 - **上下文管理**：禁止 context 超过 70%，须立即停止任务执行 HANDOFF，用 `/compact` 压缩后从 HANDOFF 恢复。CDP 截图前必须先完成 HANDOFF，防止 token 爆炸。
+   ## HANDOFF任务恢复
+   用户说「继续任务」/「continue」/「恢复」/「继续上次」时：
+   1. 要求用户粘贴上一次的 `CONTEXT_SAVE` 块
+   2. 按块中 `[TASK]`/`[DONE]`/`[BLOCK]`/`[NEXT]`/`[REF]` 还原上下文
+   3. 从 `[NEXT]` 指定的步骤继续执行，不重复已完成步骤
+   4. 若用户未粘贴存档，回复：「请粘贴上次 HANDOFF 输出的 CONTEXT_SAVE 块以恢复任务。」
+   
 - 页面相关的新建、修改、编译、预览、发布，都必须走 `web-design`。
 - 禁止修改技术栈（擅自换框架/打包工具），否则破坏项目一致性，脚本和 CI 失效。
 - 禁止使用其他项目模版，只允许使用 template/scaffold，否则破坏项目一致性，脚本和 CI 失效。
@@ -27,13 +26,12 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 禁止绕过 `publish.js` 直接发布。
 - 审计和预览必须基于 `npm run build` 之后的静态页面，不允许基于 dev server。
 - 续改项目时，只允许操作 `PROJECTS_DIR` 下、且存在 `.webdesign/project.json` 的托管项目。
-- 生成页面内容时，默认保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 这套脚手架鉴权基础设施，不得把页面改造顺手变成移除 SSO。
-- 只有用户明确要求生成公开页面或 public page，且明确说明不需要 SSO，才允许移除或重写上述鉴权基础设施。
-- 为防止 CDP 截图导致 token 爆炸，单次任务最多截图 1 次；优先在静态审计阶段使用，禁止反复截图探索。
+- 生成页面内容时，默认保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 这套脚手架鉴权基础设施，禁止把页面改造顺手变成移除 SSO。
+- 为防止 CDP 截图导致 token 爆炸，单次任务只允许截图 1 次；优先在静态审计阶段使用，禁止反复截图探索。
 - 截图前必须等待页面完成首屏渲染，禁止在页面加载中、骨架屏阶段、明显白屏阶段直接截图。
 - 若预览页面存在 SSO 登录态要求，且当前尚未完成登录，必须先要求用户完成登录，再继续截图、审计、预览确认等后续动作。
 
-**大文件处理**：读前 80 行总结结构 → 读中间总结逻辑 → 读末尾确认完整性 → 基于总结修改，不保留原文。
+**大文件处理**：读前 50 行总结结构 → 读中间总结逻辑 → 读末尾确认完整性 → 基于总结修改，不保留原文。
 
 ### 全局配置
 
@@ -179,7 +177,7 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 以下情况直接视为设计未完成：只有颜色字体没有结构、关键词全是空泛形容词、未写图片策略、未写移动端降级、未写负向红线
 7. 使用 `gpt-taste` 先对 `design.md` 做一轮设计自审，确认没有明显页型错位、模板味、图片可读性问题，再进入用户确认
 8. 🔴 **CHECKPOINT · G4→G5**：用户口头确认 design.md 后进入开发。
-   - 禁止大文件写入、禁止所有代码都在一个文件，必须基于设计方案拆分组件，按模块化、可复用、可维护的原则组织代码
+   - 禁止大文件一次性写入、禁止所有代码都在一个文件，必须基于设计方案拆分组件，按模块化、可复用、可维护的原则组织代码
    - 逻辑维护在hook里，UI维护在组件里，禁止把逻辑和UI混在一起
    - 接口请求维护在`services`里,便于维护
 9. 必须制定开发计划,后按计划开发,禁止随意改动开发计划
@@ -191,7 +189,7 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
 10. 页面开发时，默认只替换页面内容、样式、业务组件和新增受保护路由；保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 的现有 wiring
    - 任何情况都禁止移除SSO、路由守卫和鉴权请求头
 11. 图片素材获取步骤：在 Unsplash/Pexels 搜索关键词 → 复制图片直链 → `curl -L "<url>" -o src/assets/<name>.jpg` 下载到本地 → 在组件顶部 `import heroImage from "../../assets/<name>.jpg"` 后再在 JSX 中使用
-   - 禁止直接使用外链 URL 作为最终交付资源
+   - 禁止直接使用外链 URL 作为最终交付资源,防止报错
    - `default.jpg` 仅允许临时占位，若进入审计仍未替换，必须在 `audit.md` 中标记为失败项
 12. 开发完成后执行 `node scripts/vitectrl/dev-preview.js start <project-path> --bypass false`
    - `--bypass false` 为必传参数，确保启动和 build 均以 `VITE_SSO_BYPASS=false` 执行，与 G8 用户验收环境一致
@@ -201,7 +199,7 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - `.env.local` 由 `.gitignore` 保护，不进仓库
    - 启动成功后取返回值中的 `viteUrl`（Vite 原始端口，如 `http://127.0.0.1:517x`），用于 Step 13 的 CDP 截图和审计
 13. 对启动的服务路径,做 CDP 检查和 UI 走查，写入 `audit.md`
-   - 截图预算固定为单次任务最多 1 次
+   - 截图预算固定为单次任务只能 1 次
    - 分配为 1 次桌面全页截图
    - 若首轮截图已足够定位问题，剩余额度保留，禁止为了“多看几眼”继续截图,多次截图
    - 截图前必须先等待页面完成首屏渲染；至少确认主标题、主内容区域、关键图片或核心模块已出现，且页面不再处于 loading / skeleton / spinner / 明显白屏 状态
@@ -209,13 +207,13 @@ node scripts/product-sync.js <project-path> <task-id> --upstream-origin <origin>
    - 若页面进入 SSO 登录页、鉴权跳转页或未登录态，必须暂停截图与审计，先通知用户完成登录，再继续后续动作
      读取design audit: `references/design_v2/design_audit.md`，禁止绕过
    - 若出现页型错位、白字压复杂图且无遮罩、工具页信息难扫读、营销页无首屏抓手、故事页无章节推进、默认占位图未替换、明显模板味，直接判定 `overall: FAIL`
-14. 🔴 **[必须执行·不可跳过]** 执行 share-preview 导出，把 serve 访问地址发给用户
+14. 🔴 **[必须执行·不可跳过]** 执行 share-preview 导出,再把访问地址发给用户
    - 本步骤与 CDP 截图无关，token 成本为零，不受上下文压力、截图预算、HANDOFF 状态影响，任何情况不得省略
    - 🔴 禁止以任何理由跳过：无论是新建页面、续改页面、小幅修改、样式调整、纯文案改动，还是 agent 自判"用户已知道链接"，均不构成豁免条件
    - 执行命令：`node scripts/share-preview.js export <project-path> <task-id>`
-   - 该命令内部已集成 serve 健康检查：自动检测 `web-design-serve-gateway` pm2 状态，若 errored/stopped 则释放端口后重启，若不存在则首次启动，等待 online 后返回
+   - 该命令内部已集成 vite preview 健康检查：自动检测 4173 端口是否已占用，未占用则启动 `npm run preview`，等待端口就绪后返回
    - 取返回值中的 `sharePreviewUrl`，执行 `open <sharePreviewUrl>`；若命令失败，必须补发纯文本提示
-   - `sharePreviewUrl` 路径格式为 `/apps/<appId>/`，用户通过 serve 的 SSO 引导访问，体验与发布环境一致
+   - `sharePreviewUrl` 格式为 `http://127.0.0.1:4173/apps/<appId>/`
    - 浏览地址必须以纯文本形式输出，禁止使用 Markdown 链接
 15. 用户有修改意见则回退到开发阶段，重新走修改、构建、审计、预览
     - 执行 `reopen-dev` 后 Gate 回退到 `G6_DEVELOPMENT`

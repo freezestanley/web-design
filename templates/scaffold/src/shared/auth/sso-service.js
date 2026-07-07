@@ -7,53 +7,94 @@ import httpClient from '../http/axios-instance'
 
 const SERVICE_NAME = 'za-open-bot'
 
+const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0'])
+
 /**
- * 根据环境变量决定 SSO host
- *
- * 使用方式（在 .env 文件中配置）：
- *   VITE_SSO_ENV=dev|sit|uat|prd
- *   VITE_SSO_REGION=intl|insure|domestic（默认 domestic）
- *
- * 不配置时回退到国内默认 https://nsso.zhongan.io
+ * 从 hostname 推导环境标识
+ * 优先级：本地 > pre > prd 白名单 > test 特征 > fallback test
  */
-export function getSsoHost() {
-  // gateway devMode 时注入真实 SSO host，优先于构建时的 VITE_SSO_ENV
-  if (typeof window !== 'undefined' && window.__PREVIEW_SSO_HOST__) {
-    return window.__PREVIEW_SSO_HOST__
+export function getEnvFromHost(hostname = '') {
+  if (!hostname || LOCAL_HOSTNAMES.has(hostname) || hostname.includes('localhost')) {
+    return 'dev'
   }
-
-  const env = import.meta.env?.VITE_SSO_ENV || 'dev'
-  const region = import.meta.env?.VITE_SSO_REGION || 'domestic'
-
-  if (region === 'intl') {
-    const hosts = {
-      dev: 'https://za-dev-uc.in.za',
-      sit: 'https://za-sit-uc.in.za',
-      uat: 'https://za-uat-uc.in.za',
-      prd: 'https://za-uc.in.za',
-    }
-    return hosts[env] || hosts.dev
+  if (hostname.includes('pre')) return 'pre'
+  if (
+    hostname === 'aigc-lingxi-platform.prd.za.biz' ||
+    hostname === 'aigc.zhonganonline.com' ||
+    hostname === 'ai.zhonganonline.com' ||
+    hostname === 'clawmatic.zhonganonline.com' ||
+    hostname === 'za-uat-uc.in.za' ||
+    hostname === 'za-uc.in.za'
+  ) {
+    return 'prd'
   }
+  if (/^\d/.test(hostname) || hostname.includes('.test.za.biz') || hostname.includes('test')) {
+    return 'test'
+  }
+  return 'test'
+}
 
-  if (region === 'insure') {
-    const hosts = {
+/**
+ * 根据当前页面 hostname 决定 SSO host
+ *
+ * 优先级：
+ *   1. window.__PREVIEW_SSO_HOST__（gateway 强制覆盖后门）
+ *   2. 当前页面 hostname 推导（浏览器环境）
+ *   3. VITE_SSO_ENV 构建时配置（SSR / Node 环境 fallback）
+ *
+ * region 仍走 VITE_SSO_REGION（intl/insure/domestic），默认 domestic
+ */
+export function getSsoHost(){
+  const hosts = {
       dev:  'https://nsso-test.zhonganinfo.com',
       test: 'https://nsso-test.zhonganinfo.com',
       pre:  'https://nsso.zhonganinfo.com',
       prd:  'https://nsso.zhonganinfo.com',
     }
-    return hosts[env] || hosts.dev
-  }
-
-  // domestic 默认
-  const domesticHosts = {
-    dev:  'https://nsso-test.zhonganinfo.com',
-    test: 'https://nsso-test.zhonganinfo.com',
-    pre:  'https://nsso.zhonganinfo.com',
-    prd:  'https://nsso.zhonganinfo.com',
-  }
-  return domesticHosts[env] || 'https://nsso.zhongan.io'
+  return hosts[getEnvFromHost(window.location.hostname)] || hosts.prd
 }
+// export function getSsoHost() {
+//   // gateway devMode 强制覆盖，优先级最高
+//   if (typeof window !== 'undefined' && window.__PREVIEW_SSO_HOST__) {
+//     return window.__PREVIEW_SSO_HOST__
+//   }
+
+//   const env =
+//     typeof window !== 'undefined'
+//       ? getEnvFromHost(window.location.hostname)
+//       : (import.meta.env?.VITE_SSO_ENV || 'dev')
+
+//   const region = import.meta.env?.VITE_SSO_REGION || 'domestic'
+
+//   if (region === 'intl') {
+//     const hosts = {
+//       dev: 'https://za-dev-uc.in.za',
+//       sit: 'https://za-sit-uc.in.za',
+//       uat: 'https://za-uat-uc.in.za',
+//       prd: 'https://za-uc.in.za',
+//     }
+//     return hosts[env] || hosts.dev
+//   }
+
+//   if (region === 'insure') {
+//     const hosts = {
+//       dev:  'https://nsso-test.zhonganinfo.com',
+//       test: 'https://nsso-test.zhonganinfo.com',
+//       pre:  'https://nsso.zhonganinfo.com',
+//       prd:  'https://nsso.zhonganinfo.com',
+//     }
+//     return hosts[env] || hosts.dev
+//   }
+
+//   // domestic 默认
+//   const domesticHosts = {
+//     dev:  'https://nsso-test.zhonganinfo.com',
+//     test: 'https://nsso-test.zhonganinfo.com',
+//     pre:  'https://nsso.zhonganinfo.com',
+//     prd:  'https://nsso.zhonganinfo.com',
+//   }
+//   return domesticHosts[env] || 'https://nsso.zhongan.io'
+// }
 
 // ---------------------------------------------------------------------------
 // SSO API
