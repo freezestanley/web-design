@@ -26,7 +26,7 @@ async function ensureVitePreviewRunning(resolvedProjectPath) {
 
   const child = spawn(
     "npm",
-    ["run", "preview", "--", "--host", PREVIEW_HOST, "--port", String(PREVIEW_PORT), "--strictPort"],
+    ["run", "preview:local", "--", "--host", PREVIEW_HOST, "--port", String(PREVIEW_PORT), "--strictPort"],
     { cwd: resolvedProjectPath, detached: true, stdio: "ignore" }
   );
   child.unref();
@@ -158,7 +158,7 @@ function exportSharePreview(projectPath, taskId, outputDir) {
     version,
     snapshotPath: snapshotDir,
     outputDir: resolvedOutputDir,
-    sharePreviewUrl: `${process.env.WEB_DESIGN_PREVIEW_GATEWAY_ORIGIN || "http://127.0.0.1:4173"}/apps/${appId}/`
+    sharePreviewUrl: `${process.env.WEB_DESIGN_PREVIEW_GATEWAY_ORIGIN || "http://127.0.0.1:4173"}/`
   };
 }
 

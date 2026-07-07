@@ -15,4 +15,4 @@
   - 移动到`scripts`目录下,基于`packgae.json`安装 node 依赖
   - 执行先执行 HANDOFF 保存状态，然后 /compact释放上下文
   - 执行`gateway restart`重启gateway,使配置生效
-  <!-- - 安装`serve/pacakge.json`内的依赖并执行`npm run pm2:start`命令 -->
+
