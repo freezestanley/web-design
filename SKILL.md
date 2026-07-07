@@ -24,7 +24,7 @@ description: 前端页面设计开发到上线的完整 SOP skill。用于 React
 - 禁止使用其他项目模版，只允许使用 template/scaffold，否则破坏项目一致性，脚本和 CI 失效。
 - 禁止跳过 SOP Gate 或代替用户确认检查点，违反则立即失败。
 - 禁止绕过 `publish.js` 直接发布。
-- 审计和预览必须基于 `npm run build` 之后的静态页面，不允许基于 dev server。
+- 审计和预览必须基于 `npm run preview:local` 之后的静态页面，不允许基于 dev server。
 - 续改项目时，只允许操作 `PROJECTS_DIR` 下、且存在 `.webdesign/project.json` 的托管项目。
 - 生成页面内容时，默认保留 `src/app/router.jsx`、`src/shared/auth/*`、`src/shared/http/axios-instance.js` 这套脚手架鉴权基础设施，禁止把页面改造顺手变成移除 SSO。
 - 为防止 CDP 截图导致 token 爆炸，单次任务只允许截图 1 次；优先在静态审计阶段使用，禁止反复截图探索。
@@ -373,7 +373,7 @@ DONE
 
 | 触发条件 | 一线修复 | 仍失败的兜底 |
 |---------|---------|------------|
-| `npm run build` 报错 | 读错误末尾 5 行定位 → 修复对应文件 → 重新 build | 回退到 `G6_DEVELOPMENT`，执行 `gate.js reopen-dev` 并记录原因 |
+| `npm run preview:local` 报错 | 读错误末尾 5 行定位 → 修复对应文件 → 重新 build | 回退到 `G6_DEVELOPMENT`，执行 `gate.js reopen-dev` 并记录原因 |
 | Gate advance 被拒（缺字段） | 执行 `gate.js status` 查看缺失字段 → 补全后重试 advance | 告知用户缺少哪个字段，不得静默跳过 |
 | 图片资源找不到 | 从 `src/assets` `import defaultImage from ".../assets/default.jpg"` 作为临时占位，在 audit.md 中记录缺图 | 询问用户提供图片，不得使用 CDN URL 直接引用；若最终审计仍未替换，直接判 FAIL |
 | `publish.js` 执行失败 | 检查 `dist/index.html` 是否存在 → 重新 `npm run build` → 重试 | 告知用户失败原因，不得用任何其他方式发布 |
