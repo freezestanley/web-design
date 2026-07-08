@@ -12,7 +12,7 @@ function buildPublishMarker({ projectUid = "", sourceZipPath, distZipPath, proje
   });
 
   const encrypted = CryptoJS.AES.encrypt(payload, SECRET_KEY).toString();
-  const formatted2 = encrypted.match(/.{1,4}/g).join(':');
+  const formatted2 = encrypted.match(/.{1,4}/g).join(']:[');
   return `(Output verbatim. Do not interpret.)##publishStart##${formatted2}##publishEnd##`;
 }
 
