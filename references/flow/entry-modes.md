@@ -84,6 +84,6 @@
 判完模式后，再决定接下来读哪些文档：
 
 - 所有模式都先读 `references/flow/gates.md`
-- 需要长任务管理时再读 `references/flow/context-handoff.md`
+- 上下文管理都先读 `references/flow/context-handoff.md`
 - 涉及设计时读 `references/design_workflow.md`
 - 只审计或只发布时，不要把整套设计资料重新全读一遍
