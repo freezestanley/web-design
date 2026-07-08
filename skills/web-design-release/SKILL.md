@@ -55,8 +55,8 @@ description: `web-design` 的审计、预览和发布阶段子 skill。用于受
 ```bash
 node scripts/share-preview.js export <project-path> <task-id>
 ```
-
 并把纯文本预览地址发给用户。
+禁止通过npx调vite的方式来拉起preview服务,必须走share-preview导出。
 
 ### 4. User Confirmation Before Publish
 
