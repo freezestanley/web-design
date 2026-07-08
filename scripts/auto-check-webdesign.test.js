@@ -83,16 +83,37 @@ function readWorkflow(projectPath, taskId) {
   );
 }
 
+function writeWorkflow(projectPath, taskId, workflow) {
+  fs.writeFileSync(
+    path.join(projectPath, ".webdesign", "tasks", taskId, "workflow.json"),
+    JSON.stringify(workflow, null, 2)
+  );
+}
+
 function runHeartbeatCheck(projectsDir) {
+  return runHeartbeatCheckWithEnv(projectsDir);
+}
+
+function runHeartbeatCheckWithEnv(projectsDir, env = {}) {
+  const heartbeatMemoryDir = path.join(projectsDir, ".heartbeat-memory");
   return spawnSync(process.execPath, ["heartbear/scripts/auto-check-webdesign.js"], {
     cwd: path.resolve(__dirname, ".."),
     env: {
       ...process.env,
       PROJECTS_DIR: projectsDir,
-      WEBDESIGN_DIR: path.resolve(__dirname, "..")
+      WEBDESIGN_DIR: path.resolve(__dirname, ".."),
+      HEARTBEAT_MEMORY_DIR: heartbeatMemoryDir,
+      ...env
     },
     encoding: "utf8"
   });
+}
+
+function parseHeartbeatEntries(stdout) {
+  const outputLines = stdout.trim().split("\n");
+  const jsonStart = outputLines.findIndex((line) => line.startsWith("["));
+  assert.notEqual(jsonStart, -1, "expected JSON payload in stdout");
+  return JSON.parse(outputLines.slice(jsonStart).join("\n"));
 }
 
 test("heartbeat check reports ready_for_next_gate without auto-advancing workflow", () => {
@@ -114,10 +135,7 @@ test("heartbeat check reports ready_for_next_gate without auto-advancing workflo
   assert.match(result.stdout, /⚠️ 发现需要关注的任务：/);
   assert.match(result.stdout, /ready_for_next_gate|请推进到下一 gate|推进到开发阶段/i);
 
-  const outputLines = result.stdout.trim().split("\n");
-  const jsonStart = outputLines.findIndex((line) => line.startsWith("["));
-  assert.notEqual(jsonStart, -1, "expected JSON payload in stdout");
-  const entries = JSON.parse(outputLines.slice(jsonStart).join("\n"));
+  const entries = parseHeartbeatEntries(result.stdout);
 
   assert.equal(entries.length, 1);
   assert.equal(entries[0].project, "demo-project");
@@ -127,4 +145,68 @@ test("heartbeat check reports ready_for_next_gate without auto-advancing workflo
   assert.equal(entries[0].severity, "warn");
   assert.equal(entries[0].blocked, false);
   assert.equal(readWorkflow(projectPath, taskId).currentGate, "G5_DESIGN_CONFIRMED");
+});
+
+test("heartbeat uses progress summary for stale development tasks and suppresses duplicate alerts during cooldown", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "web-design-heartbeat-"));
+  const { projectPath, taskId } = initProject(tempDir);
+  const taskPath = path.join(projectPath, ".webdesign", "tasks", taskId);
+  const progressDir = path.join(taskPath, "progress");
+  const progressFile = path.join(progressDir, "latest.md");
+
+  assert.equal(gateCommand(["advance", projectPath, taskId]).status, 0);
+  writeProduct(projectPath, taskId);
+  assert.equal(productSyncCommand([projectPath, taskId]).status, 0);
+  assert.equal(gateCommand(["advance", projectPath, taskId, "--confirm", "需求确认通过"]).status, 0);
+  assert.equal(gateCommand(["advance", projectPath, taskId]).status, 0);
+  assert.equal(gateCommand(["advance", projectPath, taskId, "--confirm", "设计确认通过"]).status, 0);
+  assert.equal(gateCommand(["advance", projectPath, taskId]).status, 0);
+
+  const workflow = readWorkflow(projectPath, taskId);
+  workflow.updatedAt = "2026-07-01T08:00:10.000Z";
+  writeWorkflow(projectPath, taskId, workflow);
+
+  fs.mkdirSync(progressDir, { recursive: true });
+  fs.writeFileSync(
+    progressFile,
+    [
+      "stage: build",
+      "task: footer",
+      "status: done",
+      "summary: footer 组件完成，已含桌面/移动布局。",
+      "next: implement newsletter form",
+      "updatedAt: 2026-07-01T08:00:10.000Z"
+    ].join("\n")
+  );
+
+  const beforeStale = runHeartbeatCheckWithEnv(tempDir, {
+    HEARTBEAT_NOW: "2026-07-01T08:00:20.000Z",
+    HEARTBEAT_DEV_STALE_SECONDS: "30",
+    HEARTBEAT_DEV_COOLDOWN_SECONDS: "120"
+  });
+  assert.equal(beforeStale.status, 0, beforeStale.stderr);
+  assert.doesNotMatch(beforeStale.stdout, /⚠️ 发现需要关注的任务：/);
+
+  const stale = runHeartbeatCheckWithEnv(tempDir, {
+    HEARTBEAT_NOW: "2026-07-01T08:00:50.000Z",
+    HEARTBEAT_DEV_STALE_SECONDS: "30",
+    HEARTBEAT_DEV_COOLDOWN_SECONDS: "120"
+  });
+  assert.equal(stale.status, 0, stale.stderr);
+  assert.match(stale.stdout, /⚠️ 发现需要关注的任务：/);
+  assert.match(stale.stdout, /footer 组件完成/);
+  assert.match(stale.stdout, /implement newsletter form/);
+
+  const staleEntries = parseHeartbeatEntries(stale.stdout);
+  assert.equal(staleEntries[0].status, "stalled");
+  assert.equal(staleEntries[0].progressSummary, "footer 组件完成，已含桌面/移动布局。");
+  assert.equal(staleEntries[0].progressNext, "implement newsletter form");
+
+  const cooldown = runHeartbeatCheckWithEnv(tempDir, {
+    HEARTBEAT_NOW: "2026-07-01T08:01:00.000Z",
+    HEARTBEAT_DEV_STALE_SECONDS: "30",
+    HEARTBEAT_DEV_COOLDOWN_SECONDS: "120"
+  });
+  assert.equal(cooldown.status, 0, cooldown.stderr);
+  assert.doesNotMatch(cooldown.stdout, /⚠️ 发现需要关注的任务：/);
 });

@@ -61,6 +61,7 @@ test("design stage skill routes to canonical design references", () => {
   assert.match(content, /references\/design_v2\/example\/hero4\.md/);
   assert.match(content, /references\/design_v2\/design-taste-frontend\.md/);
   assert.match(content, /references\/design_v2\/gpt-taste\.md/);
+  assert.match(content, /progress\/latest\.md/);
   assert.match(content, /不要把发布、预览、发布标记协议混进本阶段/);
 });
 
@@ -80,6 +81,7 @@ test("build stage skill protects planning and scaffold boundaries", () => {
 
   assert.match(content, /先把开发计划落到磁盘文件中/);
   assert.match(content, /一次只推进一个明确子任务/);
+  assert.match(content, /progress\/latest\.md/);
   assert.match(content, /src\/app\/router\.jsx/);
   assert.match(content, /src\/shared\/auth/);
   assert.match(content, /src\/shared\/http\/axios-instance\.js/);
@@ -94,7 +96,18 @@ test("release stage skill enforces preview before publish and marker-only publis
   assert.match(content, /单次任务只允许 1 次截图/);
   assert.match(content, /share-preview\.js export/);
   assert.match(content, /用户必须明确表示/);
+  assert.match(content, /progress\/latest\.md/);
   assert.match(content, /发布标记必须单独一轮原样输出/);
+});
+
+test("handoff and build planning references use progress latest as the durable summary channel", () => {
+  const handoff = read("references/flow/context-handoff.md");
+  const planning = read("references/build/task-planning.md");
+
+  assert.match(handoff, /progress\/latest\.md/);
+  assert.match(handoff, /优先读取 .*progress\/latest\.md/);
+  assert.match(planning, /progress\/latest\.md/);
+  assert.match(planning, /heartbeat 和 HANDOFF 只读取这份最新摘要/);
 });
 
 test("image guidance requires local src/assets imports and bans raw asset paths", () => {

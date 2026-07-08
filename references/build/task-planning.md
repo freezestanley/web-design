@@ -35,6 +35,22 @@
 - 需要时再读
 - 用完就回到当前子任务
 
+## Progress Storage
+
+除了计划文件，再维护一份最新进度摘要：
+
+- `.webdesign/tasks/<task-id>/progress/latest.md`
+
+它只记录：
+
+- 当前阶段
+- 当前子任务
+- 最新完成摘要
+- 下一步
+- 更新时间
+
+不要把完整流水写进对话 context；heartbeat 和 HANDOFF 只读取这份最新摘要。
+
 ## Execution Discipline
 
 - 单任务执行

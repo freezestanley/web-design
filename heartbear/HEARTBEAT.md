@@ -2,6 +2,23 @@
 
 ## web-design 任务催促检查
 
+### 轮询与催促节奏
+
+- 心跳轮询频率：建议 `5 秒` 一轮（由外部宿主调度）
+- 开发中子任务：默认 `30 秒` 判定为 stale
+- gate 等用户确认：默认 `1 分钟` 判定为 stale
+- 发布前等待确认：默认 `3 分钟` 判定为 stale
+- 同一任务提醒带 cooldown，避免 5 秒轮询造成重复刷屏
+
+可通过环境变量覆盖：
+
+- `HEARTBEAT_DEV_STALE_SECONDS`
+- `HEARTBEAT_CONFIRM_STALE_SECONDS`
+- `HEARTBEAT_PUBLISH_STALE_SECONDS`
+- `HEARTBEAT_DEV_COOLDOWN_SECONDS`
+- `HEARTBEAT_CONFIRM_COOLDOWN_SECONDS`
+- `HEARTBEAT_PUBLISH_COOLDOWN_SECONDS`
+
 每轮心跳执行以下检查：
 
 1. **扫描所有 web-design 项目**
@@ -22,6 +39,10 @@
    - 不自动执行 `gate advance`
    - 不自动执行 `publish.js`
    - 把检测到的卡住任务列表发给用户，让用户决定下一步
+   - 如果 task 下存在 `.webdesign/tasks/<task-id>/progress/latest.md`，优先读取其中的：
+     - `summary`
+     - `next`
+   - 对用户只转发“最新摘要”和“下一步”，不要回放完整执行流水
 
 4. **处理当前 web-design 会话的 context / handoff**
    - 如果当前正在处理 `web-design` 任务，并且会话接近 context 阈值：
@@ -44,6 +65,7 @@
   - 任务 ID
   - 当前 gate
   - 卡住原因
+  - 最近完成摘要（如存在）
   - 建议下一步
 
 ## 特别约束

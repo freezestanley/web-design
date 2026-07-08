@@ -77,6 +77,33 @@ node scripts/publish.js <project-path> <task-id>
 
 发布标记必须单独一轮原样输出，不得拼接任何其他文字。
 
+### 6. Keep Release Progress Current
+
+每完成一个发布阶段子动作，就覆盖写一次：
+
+- `.webdesign/tasks/<task-id>/progress/latest.md`
+
+格式固定为：
+
+```md
+stage: release
+task: <current-subtask>
+status: in_progress | done | blocked
+summary: <只写最新完成摘要>
+next: <下一步>
+updatedAt: <ISO timestamp>
+```
+
+典型时机：
+
+- 受控预览已启动
+- 审计已完成
+- 预览地址已发给用户
+- 等待用户确认
+- 发布已完成
+
+不要把完整发布流水留在对话上下文里。
+
 ## Output
 
 本阶段只产出：
@@ -85,6 +112,7 @@ node scripts/publish.js <project-path> <task-id>
 - 预览地址下发结果
 - 用户预览确认结果
 - 最终发布结果
+- 最新的 `progress/latest.md`
 
 ## Do Not Do
 

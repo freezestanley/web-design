@@ -15,9 +15,10 @@
 正确顺序：
 
 1. 先用 `gate.js advance`、`block` 或 `reopen-dev` 把状态写回 `workflow.json`
-2. 输出 `CONTEXT_SAVE`
-3. 再执行上下文清理动作
-4. 恢复时按 `CONTEXT_SAVE` 继续，不重复已完成步骤
+2. 再把 `.webdesign/tasks/<task-id>/progress/latest.md` 覆盖到最新状态
+3. 输出 `CONTEXT_SAVE`
+4. 再执行上下文清理动作
+5. 恢复时按 `CONTEXT_SAVE` 继续，不重复已完成步骤
 
 ## `CONTEXT_SAVE` Format
 
@@ -34,7 +35,8 @@
 用户说“继续任务”“continue”“恢复”时：
 
 1. 先要求上一次的 `CONTEXT_SAVE`
-2. 按块恢复当前状态
-3. 从 `[NEXT]` 继续
+2. 优先读取 `.webdesign/tasks/<task-id>/progress/latest.md`
+3. 按块恢复当前状态
+4. 从 `[NEXT]` 继续
 
 如果没有 `CONTEXT_SAVE`，不要假装恢复成功。

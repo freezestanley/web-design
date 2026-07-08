@@ -117,6 +117,29 @@ description: `web-design` 的设计阶段子 skill。用于页型判定、设计
 
 前者负责“怎么把设计落成前端气质”，后者负责“怎么判断设计是否已经滑向模板味或页型错位”。
 
+### 6. Write Progress Summary
+
+每完成一个有价值的设计子任务，就覆盖写一次：
+
+- `.webdesign/tasks/<task-id>/progress/latest.md`
+
+格式固定为：
+
+```md
+stage: design
+task: <current-subtask>
+status: in_progress | done | blocked
+summary: <只写最新完成摘要>
+next: <下一步>
+updatedAt: <ISO timestamp>
+```
+
+要求：
+
+- 只保留“最新摘要”，不要把完整流水写进对话 context
+- 设计阶段的 heartbeat 只依赖这个最新摘要，不回放长历史
+- 若本阶段完成但尚未进入开发，`next` 必须指向设计确认或开发前动作
+
 ## Output
 
 本阶段只产出：
@@ -125,6 +148,7 @@ description: `web-design` 的设计阶段子 skill。用于页型判定、设计
 - 明确页型结论
 - 图片策略结论
 - 进入开发前的设计自检结论
+- 最新的 `progress/latest.md`
 
 ## Do Not Do
 

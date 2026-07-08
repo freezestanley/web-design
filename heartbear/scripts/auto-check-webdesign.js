@@ -8,8 +8,14 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const PROJECTS_DIR = process.env.PROJECTS_DIR || "/home/ubuntu/claw-workspace/projects";
-const STALE_MINUTES_THRESHOLD = Number(process.env.HEARTBEAT_STALE_MINUTES || 120);
+const HEARTBEAT_MEMORY_DIR = process.env.HEARTBEAT_MEMORY_DIR || path.join(PROJECTS_DIR, "..", "memory");
 const NOW_TS = process.env.HEARTBEAT_NOW ? Date.parse(process.env.HEARTBEAT_NOW) : Date.now();
+const DEV_STALE_SECONDS = Number(process.env.HEARTBEAT_DEV_STALE_SECONDS || 30);
+const CONFIRM_STALE_SECONDS = Number(process.env.HEARTBEAT_CONFIRM_STALE_SECONDS || 60);
+const PUBLISH_STALE_SECONDS = Number(process.env.HEARTBEAT_PUBLISH_STALE_SECONDS || 180);
+const DEV_COOLDOWN_SECONDS = Number(process.env.HEARTBEAT_DEV_COOLDOWN_SECONDS || 120);
+const CONFIRM_COOLDOWN_SECONDS = Number(process.env.HEARTBEAT_CONFIRM_COOLDOWN_SECONDS || 600);
+const PUBLISH_COOLDOWN_SECONDS = Number(process.env.HEARTBEAT_PUBLISH_COOLDOWN_SECONDS || 600);
 
 function findProjects() {
   if (!fs.existsSync(PROJECTS_DIR)) return [];
@@ -72,6 +78,28 @@ function getAuditStatus(projectPath, taskId) {
   };
 }
 
+function readProgress(taskPath) {
+  const progressPath = path.join(taskPath, "progress", "latest.md");
+  if (!fs.existsSync(progressPath)) {
+    return null;
+  }
+
+  const content = fs.readFileSync(progressPath, "utf8");
+  const progress = {};
+  for (const rawLine of content.split("\n")) {
+    const line = rawLine.trim();
+    if (!line || !line.includes(":")) continue;
+    const separatorIndex = line.indexOf(":");
+    const key = line.slice(0, separatorIndex).trim();
+    const value = line.slice(separatorIndex + 1).trim();
+    if (key) {
+      progress[key] = value;
+    }
+  }
+
+  return progress;
+}
+
 function latestMtimeMs(dirPath) {
   let latest = 0;
   if (!fs.existsSync(dirPath)) return latest;
@@ -90,16 +118,17 @@ function latestMtimeMs(dirPath) {
   return latest;
 }
 
-function getStaleMinutes(task, workflow) {
+function getStaleSeconds(task, workflow, progress) {
   const workflowUpdated = Date.parse(workflow.updatedAt || "");
-  const latestFileTs = latestMtimeMs(task.taskPath);
-  const latestTs = Math.max(
+  const progressUpdated = Date.parse(progress?.updatedAt || "");
+  const explicitTs = Math.max(
     Number.isFinite(workflowUpdated) ? workflowUpdated : 0,
-    latestFileTs
+    Number.isFinite(progressUpdated) ? progressUpdated : 0
   );
+  const latestTs = explicitTs || latestMtimeMs(task.taskPath);
 
   if (!latestTs || !Number.isFinite(NOW_TS)) return 0;
-  return Math.max(0, Math.floor((NOW_TS - latestTs) / 60000));
+  return Math.max(0, Math.floor((NOW_TS - latestTs) / 1000));
 }
 
 function makeEntry({
@@ -112,7 +141,11 @@ function makeEntry({
   suggestedNextAction,
   blocked,
   blockReason,
-  staleMinutes
+  staleMinutes,
+  staleSeconds,
+  progressTask,
+  progressSummary,
+  progressNext
 }) {
   return {
     project,
@@ -124,90 +157,91 @@ function makeEntry({
     suggestedNextAction,
     blocked,
     blockReason,
-    staleMinutes
+    staleMinutes,
+    staleSeconds,
+    progressTask,
+    progressSummary,
+    progressNext
   };
 }
 
 function classifyTask(projectPath, projectName, task, workflow) {
   const gate = workflow.currentGate;
   const pageSlug = workflow.pageSlug;
-  const staleMinutes = getStaleMinutes(task, workflow);
-  const isStalled = staleMinutes >= STALE_MINUTES_THRESHOLD;
+  const progress = readProgress(task.taskPath);
+  const staleSeconds = getStaleSeconds(task, workflow, progress);
+  const staleMinutes = Math.floor(staleSeconds / 60);
+  const progressTask = progress?.task || "";
+  const progressSummary = progress?.summary || "";
+  const progressNext = progress?.next || "";
 
-  if (workflow.blocked) {
+  function entry(extra) {
     return makeEntry({
+      ...extra,
       project: projectName,
       taskId: task.taskId,
+      gate,
+      blocked: extra.blocked ?? false,
+      blockReason: extra.blockReason ?? "",
+      staleMinutes,
+      staleSeconds,
+      progressTask,
+      progressSummary,
+      progressNext
+    });
+  }
+
+  if (workflow.blocked) {
+    return entry({
       gate,
       severity: "critical",
       status: "blocked",
       reason: workflow.blockReason || "task is blocked",
       suggestedNextAction: "unblock the task or update workflow.blockReason with a resolvable action",
       blocked: true,
-      blockReason: workflow.blockReason || "",
-      staleMinutes
+      blockReason: workflow.blockReason || ""
     });
   }
 
   if (gate === "G2_PRODUCT_WRITTEN") {
-    return makeEntry({
-      project: projectName,
-      taskId: task.taskId,
+    return entry({
       gate,
       severity: "warn",
       status: "awaiting_product_confirmation",
       reason: "product.md is written and waiting for user confirmation",
-      suggestedNextAction: "ask the user to confirm product.md before advancing",
-      blocked: false,
-      blockReason: "",
-      staleMinutes
+      suggestedNextAction: "ask the user to confirm product.md before advancing"
     });
   }
 
   if (gate === "G4_DESIGN_WRITTEN") {
-    return makeEntry({
-      project: projectName,
-      taskId: task.taskId,
+    return entry({
       gate,
       severity: "warn",
       status: "awaiting_design_confirmation",
       reason: "design.md is written and waiting for user confirmation",
-      suggestedNextAction: "ask the user to confirm design.md before advancing",
-      blocked: false,
-      blockReason: "",
-      staleMinutes
+      suggestedNextAction: "ask the user to confirm design.md before advancing"
     });
   }
 
   if (gate === "G5_DESIGN_CONFIRMED") {
     if (hasCode(projectPath, pageSlug)) {
-      return makeEntry({
-        project: projectName,
-        taskId: task.taskId,
+      return entry({
         gate,
         severity: "warn",
         status: "ready_for_next_gate",
         reason: "page code already exists but workflow has not advanced to development",
-        suggestedNextAction: "review progress and advance to the next gate when appropriate",
-        blocked: false,
-        blockReason: "",
-        staleMinutes
+        suggestedNextAction: "review progress and advance to the next gate when appropriate"
       });
     }
 
-    return makeEntry({
-      project: projectName,
-      taskId: task.taskId,
+    return entry({
       gate,
-      severity: isStalled ? "critical" : "warn",
-      status: isStalled ? "stalled" : "needs_development",
-      reason: isStalled
+      severity: staleSeconds >= DEV_STALE_SECONDS ? "critical" : "warn",
+      status: staleSeconds >= DEV_STALE_SECONDS ? "stalled" : "needs_development",
+      reason: staleSeconds >= DEV_STALE_SECONDS
         ? "design is confirmed but development appears stalled"
         : "design is confirmed but page code is not present yet",
-      suggestedNextAction: "continue development for the confirmed page",
-      blocked: false,
-      blockReason: "",
-      staleMinutes
+      suggestedNextAction: "continue development for the confirmed page"
     });
   }
 
@@ -216,148 +250,185 @@ function classifyTask(projectPath, projectName, task, workflow) {
     const audit = getAuditStatus(projectPath, task.taskId);
 
     if (!distReady) {
-      return makeEntry({
-        project: projectName,
-        taskId: task.taskId,
+      return entry({
         gate,
-        severity: isStalled ? "critical" : "warn",
-        status: isStalled ? "stalled" : "needs_build",
-        reason: isStalled
+        severity: staleSeconds >= DEV_STALE_SECONDS ? "critical" : "warn",
+        status: staleSeconds >= DEV_STALE_SECONDS ? "stalled" : "needs_build",
+        reason: staleSeconds >= DEV_STALE_SECONDS
           ? "development has not produced a build for too long"
           : "dist output is missing",
-        suggestedNextAction: "finish development and run the production build",
-        blocked: false,
-        blockReason: "",
-        staleMinutes
+        suggestedNextAction: "finish development and run the production build"
       });
     }
 
     if (audit.conclusion === "PASS") {
-      return makeEntry({
-        project: projectName,
-        taskId: task.taskId,
+      return entry({
         gate,
         severity: "warn",
         status: "audit_passed_waiting_advance",
         reason: "dist exists and audit.md is PASS, but workflow is still in development",
-        suggestedNextAction: "advance the workflow to static audit passed",
-        blocked: false,
-        blockReason: "",
-        staleMinutes
+        suggestedNextAction: "advance the workflow to static audit passed"
       });
     }
 
     if (audit.conclusion === "MISSING") {
-      return makeEntry({
-        project: projectName,
-        taskId: task.taskId,
+      return entry({
         gate,
         severity: "warn",
         status: "needs_audit",
         reason: "dist exists but audit.md is missing",
-        suggestedNextAction: "create audit.md and complete the static audit",
-        blocked: false,
-        blockReason: "",
-        staleMinutes
+        suggestedNextAction: "create audit.md and complete the static audit"
       });
     }
 
     if (audit.conclusion === "PENDING" || audit.conclusion === "UNKNOWN") {
-      return makeEntry({
-        project: projectName,
-        taskId: task.taskId,
+      return entry({
         gate,
         severity: "warn",
         status: "needs_audit",
         reason: `dist exists but audit conclusion is ${audit.conclusion}`,
-        suggestedNextAction: "finish the static audit and update conclusion to PASS or FAIL",
-        blocked: false,
-        blockReason: "",
-        staleMinutes
+        suggestedNextAction: "finish the static audit and update conclusion to PASS or FAIL"
       });
     }
 
-    return makeEntry({
-      project: projectName,
-      taskId: task.taskId,
+    return entry({
       gate,
       severity: "critical",
       status: "inconsistent_state",
       reason: `audit conclusion is ${audit.conclusion}, which needs manual review`,
-      suggestedNextAction: "inspect audit.md and reconcile workflow state manually",
-      blocked: false,
-      blockReason: "",
-      staleMinutes
+      suggestedNextAction: "inspect audit.md and reconcile workflow state manually"
     });
   }
 
   if (gate === "G7_STATIC_AUDIT_PASSED" || gate === "G8_PREVIEW") {
-    return makeEntry({
-      project: projectName,
-      taskId: task.taskId,
+    return entry({
       gate,
       severity: "warn",
       status: "awaiting_preview_confirmation",
       reason: "the task is waiting for preview review before publish readiness",
-      suggestedNextAction: "open the preview, send the URL, and ask the user for confirmation",
-      blocked: false,
-      blockReason: "",
-      staleMinutes
+      suggestedNextAction: "open the preview, send the URL, and ask the user for confirmation"
     });
   }
 
   if (gate === "G8_PREVIEW_CONFIRMED") {
-    return makeEntry({
-      project: projectName,
-      taskId: task.taskId,
+    return entry({
       gate,
       severity: "warn",
       status: "ready_for_next_gate",
       reason: "preview is confirmed and the workflow can move to publish readiness",
-      suggestedNextAction: "advance the workflow to G9_PUBLISH_READY",
-      blocked: false,
-      blockReason: "",
-      staleMinutes
+      suggestedNextAction: "advance the workflow to G9_PUBLISH_READY"
     });
   }
 
   if (gate === "G9_PUBLISH_READY") {
-    return makeEntry({
-      project: projectName,
-      taskId: task.taskId,
+    return entry({
       gate,
       severity: "warn",
       status: "publish_ready",
       reason: "the task is ready for publish and waiting for explicit user approval",
-      suggestedNextAction: "wait for the user to explicitly say 发布, then run publish.js",
-      blocked: false,
-      blockReason: "",
-      staleMinutes
+      suggestedNextAction: "wait for the user to explicitly say 发布, then run publish.js"
     });
   }
 
-  return makeEntry({
-    project: projectName,
-    taskId: task.taskId,
+  return entry({
     gate,
-    severity: isStalled ? "critical" : "info",
-    status: isStalled ? "stalled" : "ready_for_next_gate",
-    reason: isStalled
+    severity: staleSeconds >= DEV_STALE_SECONDS ? "critical" : "info",
+    status: staleSeconds >= DEV_STALE_SECONDS ? "stalled" : "ready_for_next_gate",
+    reason: staleSeconds >= DEV_STALE_SECONDS
       ? `workflow has stayed at ${gate} for ${staleMinutes} minutes`
       : `workflow is still active at ${gate}`,
-    suggestedNextAction: "inspect the current gate and continue the next concrete step",
-    blocked: false,
-    blockReason: "",
-    staleMinutes
+    suggestedNextAction: "inspect the current gate and continue the next concrete step"
   });
 }
 
 function formatAlert(entry) {
-  return `🔔 [${entry.project}] 任务 ${entry.taskId}：${entry.gate}，${entry.reason}，${entry.suggestedNextAction}`;
+  const progressBits = [];
+  if (entry.progressSummary) {
+    progressBits.push(`最近完成：${entry.progressSummary}`);
+  }
+  if (entry.progressNext) {
+    progressBits.push(`下一步：${entry.progressNext}`);
+  }
+
+  return `🔔 [${entry.project}] 任务 ${entry.taskId}：${entry.gate}，${entry.reason}，${entry.suggestedNextAction}${progressBits.length ? `，${progressBits.join("，")}` : ""}`;
+}
+
+function getAlertPolicy(entry) {
+  if (entry.status === "blocked" || entry.status === "inconsistent_state") {
+    return { thresholdSeconds: 0, cooldownSeconds: DEV_COOLDOWN_SECONDS };
+  }
+
+  if (entry.status === "awaiting_product_confirmation" || entry.status === "awaiting_design_confirmation" || entry.status === "awaiting_preview_confirmation") {
+    return { thresholdSeconds: CONFIRM_STALE_SECONDS, cooldownSeconds: CONFIRM_COOLDOWN_SECONDS };
+  }
+
+  if (entry.status === "publish_ready") {
+    return { thresholdSeconds: PUBLISH_STALE_SECONDS, cooldownSeconds: PUBLISH_COOLDOWN_SECONDS };
+  }
+
+  if (entry.status === "needs_build" || entry.status === "needs_development" || entry.status === "stalled" || entry.status === "needs_audit") {
+    return { thresholdSeconds: DEV_STALE_SECONDS, cooldownSeconds: DEV_COOLDOWN_SECONDS };
+  }
+
+  return { thresholdSeconds: 0, cooldownSeconds: DEV_COOLDOWN_SECONDS };
+}
+
+function readAlertState() {
+  const statePath = path.join(HEARTBEAT_MEMORY_DIR, "heartbeat-alert-state.json");
+  if (!fs.existsSync(statePath)) {
+    return { path: statePath, entries: {} };
+  }
+
+  try {
+    return {
+      path: statePath,
+      entries: JSON.parse(fs.readFileSync(statePath, "utf8"))
+    };
+  } catch {
+    return { path: statePath, entries: {} };
+  }
+}
+
+function writeAlertState(state) {
+  const stateDir = path.dirname(state.path);
+  if (!fs.existsSync(stateDir)) {
+    fs.mkdirSync(stateDir, { recursive: true });
+  }
+  fs.writeFileSync(state.path, JSON.stringify(state.entries, null, 2));
+}
+
+function shouldEmitAlert(entry, state) {
+  const { thresholdSeconds, cooldownSeconds } = getAlertPolicy(entry);
+  if (entry.staleSeconds < thresholdSeconds) {
+    return false;
+  }
+
+  const key = `${entry.project}::${entry.taskId}`;
+  const fingerprint = [
+    entry.gate,
+    entry.status,
+    entry.reason,
+    entry.suggestedNextAction,
+    entry.progressSummary,
+    entry.progressNext
+  ].join("|");
+  const previous = state.entries[key];
+
+  if (!previous || previous.fingerprint !== fingerprint) {
+    state.entries[key] = { fingerprint, sentAt: NOW_TS };
+    return true;
+  }
+
+  if ((NOW_TS - previous.sentAt) / 1000 >= cooldownSeconds) {
+    state.entries[key] = { fingerprint, sentAt: NOW_TS };
+    return true;
+  }
+
+  return false;
 }
 
 function writeLog(results, alerts) {
-  const checkLogPath = path.join(PROJECTS_DIR, "..", "memory", "heartbeat-check.json");
+  const checkLogPath = path.join(HEARTBEAT_MEMORY_DIR, "heartbeat-check.json");
   const checkDir = path.dirname(checkLogPath);
   if (!fs.existsSync(checkDir)) {
     fs.mkdirSync(checkDir, { recursive: true });
@@ -380,6 +451,7 @@ function writeLog(results, alerts) {
 function main() {
   const results = [];
   const alerts = [];
+  const alertState = readAlertState();
 
   for (const projectPath of findProjects()) {
     const projectName = path.basename(projectPath);
@@ -389,7 +461,9 @@ function main() {
 
       const entry = classifyTask(projectPath, projectName, task, workflow);
       results.push(entry);
-      alerts.push(formatAlert(entry));
+      if (shouldEmitAlert(entry, alertState)) {
+        alerts.push(formatAlert(entry));
+      }
     }
   }
 
@@ -405,6 +479,7 @@ function main() {
 
   console.log(JSON.stringify(results, null, 2));
   writeLog(results, alerts);
+  writeAlertState(alertState);
 }
 
 main();

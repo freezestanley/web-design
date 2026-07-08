@@ -42,6 +42,29 @@ description: `web-design` 的开发阶段子 skill。用于把已确认的 `desi
 - 一次只推进一个明确子任务
 - 一个子任务只改一个紧密相关的文件
 
+### 1.5. Keep Latest Progress On Disk
+
+每完成一个开发子任务，就覆盖写一次：
+
+- `.webdesign/tasks/<task-id>/progress/latest.md`
+
+格式固定为：
+
+```md
+stage: build
+task: <current-subtask>
+status: in_progress | done | blocked
+summary: <只写最新完成摘要>
+next: <下一步>
+updatedAt: <ISO timestamp>
+```
+
+要求：
+
+- 对用户只汇报一句最新摘要，不回放整段流水
+- heartbeat 只读取这份最新摘要
+- 若子任务完成后准备切到别的组件，`next` 必须明确下一个组件或动作
+
 ### 2. Build by Component
 
 不要一口气把整页糊进一个大文件。
@@ -62,6 +85,7 @@ description: `web-design` 的开发阶段子 skill。用于把已确认的 `desi
 - `src/shared/http/axios-instance.js`
 
 禁止在页面开发中移除 SSO、路由守卫或鉴权请求头的改造,没有例外
+只有在用户**明确要求公开页面 / public page** 时，才允许讨论是否放宽这套约束
 
 ### 4. Asset Rule
 
@@ -95,6 +119,7 @@ description: `web-design` 的开发阶段子 skill。用于把已确认的 `desi
 - 已落盘的开发计划
 - 按模块拆分的实现代码
 - 可进入审计阶段的构建结果
+- 最新的 `progress/latest.md`
 
 ## Do Not Do
 
