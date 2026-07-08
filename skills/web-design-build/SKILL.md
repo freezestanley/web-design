@@ -42,7 +42,17 @@ description: `web-design` 的开发阶段子 skill。用于把已确认的 `desi
 - 一次只推进一个明确子任务
 - 一个子任务只改一个紧密相关的文件
 
-### 2. Build by Component
+### 2. Subtask Reply Summary
+
+每完成一个子任务，当轮回复只给一行简单摘要，让用户知道在干嘛。
+
+- 格式：`完成<模块/文件名><动作>`，例如：`完成header.tsx组件`、`完成useAuth hook`、`完成product-sync.js脚本`
+- 禁止附带：文件路径、函数签名、diff、代码片段、设计解释、错误堆栈
+- 禁止把该摘要写入 HANDOFF / CONTEXT_SAVE / memory / brain / mempalace / diary
+- 此摘要属于用完即抛的瞬时进度信号，下一子任务开始后即失效
+- 若产物需在后续引用，仅在 `[REF]` 中记录产物位置与引用键，不复述摘要
+
+### 3. Build by Component
 
 不要一口气把整页糊进一个大文件。
 
@@ -53,7 +63,7 @@ description: `web-design` 的开发阶段子 skill。用于把已确认的 `desi
 - hooks / 状态逻辑
 - services / 数据访问
 
-### 3. Preserve Scaffold Wiring
+### 4. Preserve Scaffold Wiring
 
 默认保留：
 
@@ -63,7 +73,7 @@ description: `web-design` 的开发阶段子 skill。用于把已确认的 `desi
 
 禁止在页面开发中移除 SSO、路由守卫或鉴权请求头的改造,没有例外
 
-### 4. Asset Rule
+### 5. Asset Rule
 
 图片素材必须：
 
@@ -77,7 +87,7 @@ description: `web-design` 的开发阶段子 skill。用于把已确认的 `desi
 - `src="/assets/..."` 或 `src="./assets/..."`
 - 读取图片原始内容塞进 context
 
-### 5. Change Scope
+### 6. Change Scope
 
 默认只改：
 
