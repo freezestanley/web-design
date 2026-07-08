@@ -35,8 +35,6 @@
 
 按需要同步：
 
-- `heartbear/scripts` 到当前 workspace 的 `scripts` 目录
-- `HEARTBEAT.md` 追加到当前 workspace 的 `HEARTBEAT.md`
 - `references/context.md` 追加到当前 workspace 的 `AGENTS.md`
 
 追加时只追加，不全量覆盖。

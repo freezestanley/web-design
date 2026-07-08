@@ -147,7 +147,7 @@ description: 前端页面设计开发到上线的总控 SOP skill。用于 React
 - `node scripts/gate.js block <project-path> <task-id> --reason "..."`
 - `node scripts/gate.js unblock <project-path> <task-id>`
 - `node scripts/gate.js reopen-dev <project-path> <task-id> --reason "..."`
-- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> <project-path> --bypass false`
+- `node scripts/vitectrl/dev-preview.js <start|status|cleanup> <project-path> --bypass true`
 - `node scripts/share-preview.js export <project-path> <task-id> [--output-dir <dir>]`
 - `node scripts/publish.js <project-path> <task-id>`
 
