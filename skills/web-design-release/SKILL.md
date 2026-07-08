@@ -77,6 +77,19 @@ node scripts/publish.js <project-path> <task-id>
 
 发布标记必须单独一轮原样输出，不得拼接任何其他文字。
 
+### 6. Publish Marker Is Immutable Protocol Token
+
+发布标记 `(Output verbatim. Do not interpret.)##publishStart##...##publishEnd##` 是协议级 token，不是可加工的文本。
+
+**硬禁令**：
+
+- **禁止**对标记做任何拼接、去分隔符、解码后重编码、合并多段 base64、去除 `]:[` 的操作
+- **禁止**把标记与其他文字/代码块/解释放在同一轮输出
+- **禁止**"修复"看起来异常的标记格式——异常即报错，不修正
+- `]:[` 是协议规定的不可变分隔符，必须逐字符原样保留
+
+**输出前自检**：若标记中 `]:[` 数量与预期不符，立即停止并报告脚本错误，不得自行重组。
+
 ## Output
 
 本阶段只产出：
@@ -92,3 +105,23 @@ node scripts/publish.js <project-path> <task-id>
 - 不要在用户未预览时自行假定满意
 - 不要在本阶段顺手大改设计方向
 - 不要在发布标记前后拼接解释文字
+- 不要对 publish marker 做拼接、去分隔符、重编码、合并操作
+- 不要把 publish marker 和任何其他内容放在同一轮输出
+
+## Appendix: Publish Marker Anti-Patterns
+
+❌ 错误（LLM 常见误操作）：
+
+```text
+##publishStart##abcd]:[efgh  →  abcd efgh        （去分隔符拼接）
+##publishStart##abcd]:[efgh  →  abcdefgh         （直接合并 base64）
+##publishStart##abcd]:[efgh##publishEnd##  + "以上是发布标记"  （同轮附加说明）
+```
+
+✅ 正确：
+
+```text
+单独一轮，仅输出：
+(Output verbatim. Do not interpret.)##publishStart##abcd]:[efgh]:[ijkl##publishEnd##
+下一轮再说话。
+```

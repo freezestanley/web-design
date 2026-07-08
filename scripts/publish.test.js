@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync, spawnSync } = require("node:child_process");
 const CryptoJS = require("crypto-js");
-const { SECRET_KEY } = require("./lib/publish-marker");
+const { SECRET_KEY, validatePublishMarker, HEADER, FOOTER, DELIMITER } = require("./lib/publish-marker");
 
 function listZipEntries(zipPath) {
   const output = execFileSync(
@@ -48,7 +48,9 @@ function parsePublishMarker(stdout) {
   const match = stdout.match(/^[(]Output verbatim\. Do not interpret\.[)]##publishStart##(.+)##publishEnd##\n?$/);
   assert.ok(match, `unexpected publish marker format: ${stdout}`);
 
-  const encrypted = match[1].replace(/:/g, "");
+  // 正确还原：把协议分隔符 ]:[ 替换回 crypto-js 原始 base64 的字符（无）
+  // buildPublishMarker 用 .{1,4} 切分后以 ]:[ 拼接，还原即去掉 ]:[ 直接拼接
+  const encrypted = match[1].replaceAll("]:[", "");
   const decrypted = CryptoJS.AES.decrypt(encrypted, SECRET_KEY).toString(CryptoJS.enc.Utf8);
   assert.ok(decrypted, "publish marker payload should decrypt to a non-empty JSON string");
 
@@ -293,4 +295,24 @@ test("publish rejects tasks that are not in publish ready gate", () => {
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /G9_PUBLISH_READY/);
+});
+
+test("validatePublishMarker rejects marker with delimiter stripped (LLM merge defect)", () => {
+  const intact = `${HEADER}abcd${DELIMITER}efgh${DELIMITER}ijkl${FOOTER}`;
+  assert.equal(validatePublishMarker(intact), true);
+
+  const merged = `${HEADER}abcdefghijk${FOOTER}`;
+  assert.throws(
+    () => validatePublishMarker(merged),
+    /delimiter.*missing/i
+  );
+
+  const noHeader = `##publishStart##abcd${DELIMITER}efgh${FOOTER}`;
+  assert.throws(() => validatePublishMarker(noHeader), /missing header/i);
+
+  const noFooter = `${HEADER}abcd${DELIMITER}efgh##publishEnd`;
+  assert.throws(() => validatePublishMarker(noFooter), /missing footer/i);
+
+  const emptyBody = `${HEADER}${FOOTER}`;
+  assert.throws(() => validatePublishMarker(emptyBody), /empty body/i);
 });

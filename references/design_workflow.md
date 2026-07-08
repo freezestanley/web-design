@@ -12,15 +12,6 @@
 - `references/design_v2/design-taste-frontend.md`
 - `references/design_v2/gpt-taste.md`
 
-如需参考填写方式，再额外阅读：
-
-- `references/design_v2/example-marketing-design.md`
-- `references/design_v2/example-saas-design.md`
-- `references/design_v2/example/index.md`
-
-如需找具体 hero / section 样例，先从 `references/design_v2/example/index.md` 进入，再按需读取对应文件；不要把整个示例目录一次性全读完。
-
-
 ## 执行总则
 
 - 进入 Step 3 后，先判定页型，禁止先选工具再倒推页面长相。
