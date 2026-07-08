@@ -17,36 +17,36 @@ description: `web-design` 的设计阶段子 skill。用于页型判定、设计
 
 若这些还没准备好，先回到总控阶段，不要直接脑补设计。
 
-## Required Reads
+## Required Reads（按条件触发，非全量必读）
 
-先读：
+### 启动必读（任何页型都读，且只读这 3 份）
 
 - `references/design_workflow.md`
-- `references/design_v2/design.md`
+- `references/design_v2/design.md`（design.md 模板本体）
 - `references/image.md`
 
-如需参考现成 section / hero 设计样例，再读：
+### 按页型选读（仅读命中项，未命中不读）
 
-- `references/design_v2/example/index.md`
+| 页型 | 必读 | 可选 |
+|------|------|------|
+| Marketing / Landing | `references/design/landing.md` | — |
+| SaaS / Dashboard / Tool | `references/design/landing.md`（仅借用结构方法） | — |
+| Story / PPT / Scrolltelling | `references/design/ppt.md` + `references/design/story.md` | — |
+| 含视频 / 粒子 / 光影背景 | `references/design/background.md` | — |
 
-再按页型补读：
+禁止在启动阶段一次性 Read 全部引用。
 
-- `references/design/landing.md`
-- `references/design/ppt.md`
-- `references/design/story.md`
-- `references/design/background.md`
+### Hero 样例（严格索引优先）
 
-当页面需要以下特征时，优先从示例索引跳到对应 hero 文档：
+1. 先读 `references/design_v2/example/index.md`
+2. 仅当 index.md 中明确匹配当前需求时，才定向读取对应 `heroN.md`
+3. **禁止**遍历 hero1-4、**禁止**直接读 `hero.md`（已知为空文件）
 
-- 暗色视频背景 hero
-- 底部对齐的高对比标题布局
-- 投资 / 顾问 / 高端品牌类首屏
+不要把整个 example 目录全量读完。
 
-当前优先参考：
+### 自审合并读取（design.md 完成后一次性执行）
 
-- `references/design_v2/example/hero4.md`
-
-形成 `design.md` 后，再读：
+同时读取以下两份，对照输出一份**合并自检报告**，不要拆成两次独立分析：
 
 - `references/design_v2/design-taste-frontend.md`
 - `references/design_v2/gpt-taste.md`
@@ -72,13 +72,9 @@ description: `web-design` 的设计阶段子 skill。用于页型判定、设计
 
 ### 2. Route Local References
 
-只读当前页型需要的资料，不全量扫读：
+按 Required Reads 的页型选读表和 Hero 样例规则执行，不在此处重复列举文件路径。
 
-- 营销页优先 `landing.md`
-- 工具页优先借用 `landing.md` 的结构方法，并服从当前业务 UI 秩序
-- 叙事页优先 `ppt.md` + `story.md`
-- 有背景、视频、粒子、光影需求时，再补 `background.md`
-- 需要具体 hero 结构样例时，先读 `references/design_v2/example/index.md`，再定向进入对应 hero 文档；不要把整个 example 目录全量读完
+补充行为约束：工具页借用 `landing.md` 结构方法时，必须服从当前业务 UI 秩序，不得照搬营销页视觉节奏。
 
 ### 3. Define Image Strategy First
 
@@ -110,21 +106,27 @@ description: `web-design` 的设计阶段子 skill。用于页型判定、设计
 
 ### 5. Run Design Self-Review
 
-在交给用户确认前，用以下两个本地参考校正：
+在交给用户确认前，按 Required Reads → 自审合并读取的规则一次性完成对照校验。
 
-- `references/design_v2/design-taste-frontend.md`
-- `references/design_v2/gpt-taste.md`
-
-前者负责“怎么把设计落成前端气质”，后者负责“怎么判断设计是否已经滑向模板味或页型错位”。
+行为要求：用 `design-taste-frontend` 校正前端落地气质，用 `gpt-taste` 检测模板味或页型错位。两者必须合并为一份自检报告，不得拆成两次独立分析。
 
 ## Output
 
-本阶段只产出：
+本阶段所有产出必须合并进 `design.md` 单文件，不另起总结文档。页型结论、图片策略结论、设计自检结论作为 `design.md` 的一级章节存在。
 
-- 完整 `design.md`
-- 明确页型结论
-- 图片策略结论
-- 进入开发前的设计自检结论
+`design.md` 必须包含以下一级章节：
+
+- 页面身份
+- 页型结论
+- 设计指纹
+- 视觉关键词
+- Section Blueprint
+- 图片与背景策略（含图片策略结论）
+- 组件语言
+- 动效策略
+- 移动端降级
+- 负向红线
+- 设计自检结论（合并 taste-frontend + gpt-taste 的对照结果）
 
 ## Do Not Do
 
@@ -132,3 +134,7 @@ description: `web-design` 的设计阶段子 skill。用于页型判定、设计
 - 不要在 `design.md` 不合格时直接写代码
 - 不要把 `design-taste-frontend` 或 `gpt-taste` 只当工具名，不读本地约束文档
 - 不要把发布、预览、发布标记协议混进本阶段
+- 不要在启动阶段一次性 Read 全部引用（按页型决策树按需读取）
+- 不要绕过 `example/index.md` 直接读 `heroN.md`
+- 不要把 taste-frontend 和 gpt-taste 拆成两次独立分析（必须合并为一次对照自检）
+- 不要 Read 空文件 `references/design_v2/example/hero.md`

@@ -55,7 +55,7 @@
 | 页型 | 必读资料 | 关注重点 |
 |------|----------|----------|
 | `Marketing / Landing` | `references/design/landing.md` | Hero 锚点、卖点分段、CTA 节奏、社会证明 |
-| `SaaS / Dashboard / Tool` | `references/design/landing.md` 中可转化部分 + 当前项目现有 UI | 信息层级、筛选区、数据区、空状态、组件秩序 |
+| `SaaS / Dashboard / Tool` | `references/design/admin.md` 中可转化部分 + 当前项目现有 UI | 信息层级、筛选区、数据区、空状态、组件秩序 |
 | `Story / PPT / Scrolltelling` | `references/design/ppt.md`, `references/design/story.md` | 章节推进、镜头感、分幕节奏 |
 | `Hybrid` | 先读主页型对应资料，再补读副页型资料 | 主骨架由主页型决定，副页型只做局部增强 |
 
